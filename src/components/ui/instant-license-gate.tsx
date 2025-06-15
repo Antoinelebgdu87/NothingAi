@@ -148,23 +148,16 @@ const InstantLicenseGate = ({ onLicenseValid }: InstantLicenseGateProps) => {
             </Button>
           </form>
 
-          {/* Aide pour tester */}
+          {/* Informations pour les utilisateurs */}
           <div className="border-t pt-4">
-            <div className="text-center space-y-3">
-              <h4 className="text-sm font-medium text-green-400">
-                🧪 Test rapide
+            <div className="text-center space-y-2">
+              <h4 className="text-sm font-medium text-muted-foreground">
+                Besoin d'une license ?
               </h4>
-              <Button
-                variant="outline"
-                onClick={testWithWorkingKey}
-                className="w-full text-xs"
-                disabled={isActivating}
-              >
-                <Key className="w-3 h-3 mr-2" />
-                Utiliser 4C24HUEQ (Test)
-              </Button>
               <p className="text-xs text-muted-foreground">
-                Clés valides: 4C24HUEQ, TEST1234, DEMO5678, FREE0000
+                Contactez l'administrateur pour obtenir votre clé de license
+                personnalisée avec la durée et le nombre d'utilisations
+                souhaités.
               </p>
             </div>
           </div>
