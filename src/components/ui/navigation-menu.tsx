@@ -1,128 +1,184 @@
-import * as React from "react";
-import * as NavigationMenuPrimitive from "@radix-ui/react-navigation-menu";
-import { cva } from "class-variance-authority";
-import { ChevronDown } from "lucide-react";
-
+import React from "react";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Home,
+  Settings,
+  Download,
+  Upload,
+  Trash2,
+  MoreVertical,
+  FileText,
+  BarChart3,
+} from "lucide-react";
+import { NothingAIWordmark } from "./nothingai-logo";
 
-const NavigationMenu = React.forwardRef<
-  React.ElementRef<typeof NavigationMenuPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Root>
->(({ className, children, ...props }, ref) => (
-  <NavigationMenuPrimitive.Root
-    ref={ref}
-    className={cn(
-      "relative z-10 flex max-w-max flex-1 items-center justify-center",
-      className,
-    )}
-    {...props}
-  >
-    {children}
-    <NavigationMenuViewport />
-  </NavigationMenuPrimitive.Root>
-));
-NavigationMenu.displayName = NavigationMenuPrimitive.Root.displayName;
+interface NavigationMenuProps {
+  onExportData?: () => void;
+  onImportData?: () => void;
+  onClearData?: () => void;
+  onExportChat?: () => void;
+  className?: string;
+}
 
-const NavigationMenuList = React.forwardRef<
-  React.ElementRef<typeof NavigationMenuPrimitive.List>,
-  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.List>
->(({ className, ...props }, ref) => (
-  <NavigationMenuPrimitive.List
-    ref={ref}
-    className={cn(
-      "group flex flex-1 list-none items-center justify-center space-x-1",
-      className,
-    )}
-    {...props}
-  />
-));
-NavigationMenuList.displayName = NavigationMenuPrimitive.List.displayName;
+const NavigationMenu = ({
+  onExportData,
+  onImportData,
+  onClearData,
+  onExportChat,
+  className,
+}: NavigationMenuProps) => {
+  const location = useLocation();
 
-const NavigationMenuItem = NavigationMenuPrimitive.Item;
+  const isActive = (path: string) => location.pathname === path;
 
-const navigationMenuTriggerStyle = cva(
-  "group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-accent/50 data-[state=open]:bg-accent/50",
-);
+  return (
+    <nav className={cn("flex items-center justify-between", className)}>
+      {/* Logo et navigation principale */}
+      <div className="flex items-center space-x-6">
+        <Link to="/">
+          <NothingAIWordmark size="md" />
+        </Link>
 
-const NavigationMenuTrigger = React.forwardRef<
-  React.ElementRef<typeof NavigationMenuPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
-  <NavigationMenuPrimitive.Trigger
-    ref={ref}
-    className={cn(navigationMenuTriggerStyle(), "group", className)}
-    {...props}
-  >
-    {children}{" "}
-    <ChevronDown
-      className="relative top-[1px] ml-1 h-3 w-3 transition duration-200 group-data-[state=open]:rotate-180"
-      aria-hidden="true"
-    />
-  </NavigationMenuPrimitive.Trigger>
-));
-NavigationMenuTrigger.displayName = NavigationMenuPrimitive.Trigger.displayName;
+        <div className="hidden md:flex items-center space-x-2">
+          <Link to="/">
+            <Button
+              variant={isActive("/") ? "default" : "ghost"}
+              size="sm"
+              className={cn(
+                "flex items-center gap-2",
+                isActive("/") && "bg-primary/10 text-primary",
+              )}
+            >
+              <Home className="w-4 h-4" />
+              Accueil
+            </Button>
+          </Link>
 
-const NavigationMenuContent = React.forwardRef<
-  React.ElementRef<typeof NavigationMenuPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Content>
->(({ className, ...props }, ref) => (
-  <NavigationMenuPrimitive.Content
-    ref={ref}
-    className={cn(
-      "left-0 top-0 w-full data-[motion^=from-]:animate-in data-[motion^=to-]:animate-out data-[motion^=from-]:fade-in data-[motion^=to-]:fade-out data-[motion=from-end]:slide-in-from-right-52 data-[motion=from-start]:slide-in-from-left-52 data-[motion=to-end]:slide-out-to-right-52 data-[motion=to-start]:slide-out-to-left-52 md:absolute md:w-auto ",
-      className,
-    )}
-    {...props}
-  />
-));
-NavigationMenuContent.displayName = NavigationMenuPrimitive.Content.displayName;
+          <Link to="/settings">
+            <Button
+              variant={isActive("/settings") ? "default" : "ghost"}
+              size="sm"
+              className={cn(
+                "flex items-center gap-2",
+                isActive("/settings") && "bg-primary/10 text-primary",
+              )}
+            >
+              <Settings className="w-4 h-4" />
+              Paramètres
+            </Button>
+          </Link>
+        </div>
+      </div>
 
-const NavigationMenuLink = NavigationMenuPrimitive.Link;
+      {/* Menu actions */}
+      <div className="flex items-center space-x-2">
+        {/* Menu desktop */}
+        <div className="hidden md:flex items-center space-x-2">
+          {onExportChat && (
+            <Button variant="outline" size="sm" onClick={onExportChat}>
+              <FileText className="w-4 h-4 mr-2" />
+              Exporter Chat
+            </Button>
+          )}
 
-const NavigationMenuViewport = React.forwardRef<
-  React.ElementRef<typeof NavigationMenuPrimitive.Viewport>,
-  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Viewport>
->(({ className, ...props }, ref) => (
-  <div className={cn("absolute left-0 top-full flex justify-center")}>
-    <NavigationMenuPrimitive.Viewport
-      className={cn(
-        "origin-top-center relative mt-1.5 h-[var(--radix-navigation-menu-viewport-height)] w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-90 md:w-[var(--radix-navigation-menu-viewport-width)]",
-        className,
-      )}
-      ref={ref}
-      {...props}
-    />
-  </div>
-));
-NavigationMenuViewport.displayName =
-  NavigationMenuPrimitive.Viewport.displayName;
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {onExportData && (
+                <DropdownMenuItem onClick={onExportData}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Exporter Données
+                </DropdownMenuItem>
+              )}
+              {onImportData && (
+                <DropdownMenuItem onClick={onImportData}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Importer Données
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              {onClearData && (
+                <DropdownMenuItem
+                  onClick={onClearData}
+                  className="text-destructive"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Effacer Tout
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
-const NavigationMenuIndicator = React.forwardRef<
-  React.ElementRef<typeof NavigationMenuPrimitive.Indicator>,
-  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Indicator>
->(({ className, ...props }, ref) => (
-  <NavigationMenuPrimitive.Indicator
-    ref={ref}
-    className={cn(
-      "top-full z-[1] flex h-1.5 items-end justify-center overflow-hidden data-[state=visible]:animate-in data-[state=hidden]:animate-out data-[state=hidden]:fade-out data-[state=visible]:fade-in",
-      className,
-    )}
-    {...props}
-  >
-    <div className="relative top-[60%] h-2 w-2 rotate-45 rounded-tl-sm bg-border shadow-md" />
-  </NavigationMenuPrimitive.Indicator>
-));
-NavigationMenuIndicator.displayName =
-  NavigationMenuPrimitive.Indicator.displayName;
-
-export {
-  navigationMenuTriggerStyle,
-  NavigationMenu,
-  NavigationMenuList,
-  NavigationMenuItem,
-  NavigationMenuContent,
-  NavigationMenuTrigger,
-  NavigationMenuLink,
-  NavigationMenuIndicator,
-  NavigationMenuViewport,
+        {/* Menu mobile */}
+        <div className="md:hidden">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem asChild>
+                <Link to="/" className="flex items-center">
+                  <Home className="w-4 h-4 mr-2" />
+                  Accueil
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/settings" className="flex items-center">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Paramètres
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {onExportChat && (
+                <DropdownMenuItem onClick={onExportChat}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Exporter Chat
+                </DropdownMenuItem>
+              )}
+              {onExportData && (
+                <DropdownMenuItem onClick={onExportData}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Exporter Données
+                </DropdownMenuItem>
+              )}
+              {onImportData && (
+                <DropdownMenuItem onClick={onImportData}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Importer Données
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              {onClearData && (
+                <DropdownMenuItem
+                  onClick={onClearData}
+                  className="text-destructive"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Effacer Tout
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    </nav>
+  );
 };
+
+export default NavigationMenu;

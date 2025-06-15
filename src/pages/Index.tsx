@@ -45,7 +45,9 @@ import {
   MessageSquare,
   Paperclip,
   History,
+  ExternalLink,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useChat } from "@/hooks/use-chat";
 import ChatMessageComponent from "@/components/ui/chat-message";
 import ImageUploadModal from "@/components/ui/image-upload-modal";
@@ -252,6 +254,30 @@ const Index = () => {
                       <ImageIcon className="w-4 h-4 mr-2" />
                       Analyser des Images
                     </Button>
+
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={() => {
+                        setShowImageGeneration(true);
+                        setShowSidebar(false);
+                      }}
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Générer une Image
+                    </Button>
+
+                    <Link to="/settings">
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => setShowSidebar(false)}
+                      >
+                        <Settings className="w-4 h-4 mr-2" />
+                        Paramètres
+                        <ExternalLink className="w-3 h-3 ml-auto" />
+                      </Button>
+                    </Link>
                   </div>
                   <ConversationSidebar
                     conversations={conversations}
