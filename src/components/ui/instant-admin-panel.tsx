@@ -10,8 +10,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Key, Plus, Eye, EyeOff, Copy, Trash2 } from "lucide-react";
-import { instantLicenseManager } from "@/lib/instant-license-manager";
+import {
+  Shield,
+  Key,
+  Plus,
+  Eye,
+  EyeOff,
+  Copy,
+  Trash2,
+  Clock,
+  Hash,
+} from "lucide-react";
+import {
+  instantLicenseManager,
+  type CustomLicense,
+} from "@/lib/instant-license-manager";
 import { toast } from "sonner";
 
 interface InstantAdminPanelProps {
@@ -24,6 +37,10 @@ const InstantAdminPanel = ({ open, onClose }: InstantAdminPanelProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  // États pour création de license
+  const [duration, setDuration] = useState(30);
+  const [maxUsages, setMaxUsages] = useState(100);
 
   // Credentials admin
   const ADMIN_CREDENTIALS = {
@@ -50,10 +67,28 @@ const InstantAdminPanel = ({ open, onClose }: InstantAdminPanelProps) => {
     onClose();
   };
 
-  const generateNewLicense = () => {
-    const newKey = instantLicenseManager.generateLicense();
-    navigator.clipboard.writeText(newKey);
-    toast.success(`License générée: ${newKey} (copiée !)`);
+  const createNewLicense = () => {
+    if (duration < 1 || duration > 365) {
+      toast.error("Durée doit être entre 1 et 365 jours");
+      return;
+    }
+
+    if (maxUsages < 1 || maxUsages > 10000) {
+      toast.error("Usages doivent être entre 1 et 10000");
+      return;
+    }
+
+    const result = instantLicenseManager.createCustomLicense(
+      duration,
+      maxUsages,
+    );
+
+    if (result.success) {
+      navigator.clipboard.writeText(result.key);
+      toast.success(`License créée: ${result.key} (copiée !)`);
+    } else {
+      toast.error(result.message);
+    }
   };
 
   const copyLicense = (licenseKey: string) => {
@@ -61,23 +96,45 @@ const InstantAdminPanel = ({ open, onClose }: InstantAdminPanelProps) => {
     toast.success("Clé copiée !");
   };
 
+  const deleteLicense = (licenseKey: string) => {
+    const success = instantLicenseManager.deleteLicense(licenseKey);
+    if (success) {
+      toast.success("License supprimée !");
+    } else {
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
   const clearUserLicense = () => {
     instantLicenseManager.clearLicense();
     toast.success("License utilisateur supprimée !");
   };
 
+  const formatDate = (date: Date | string) => {
+    const d = new Date(date);
+    return d.toLocaleDateString("fr-FR") + " " + d.toLocaleTimeString("fr-FR");
+  };
+
+  const getDaysRemaining = (expiresAt: Date | string) => {
+    const now = new Date();
+    const expires = new Date(expiresAt);
+    const diff = expires.getTime() - now.getTime();
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return days;
+  };
+
   if (!open) return null;
 
   const stats = instantLicenseManager.getStats();
-  const validLicenses = instantLicenseManager.getValidLicenses();
+  const allLicenses = instantLicenseManager.getAllLicenses();
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="w-6 h-6 text-blue-500" />
-            Panel Admin Instant - NothingAI ⚡
+            Panel Admin - License Manager ⚡
           </DialogTitle>
         </DialogHeader>
 
@@ -89,7 +146,7 @@ const InstantAdminPanel = ({ open, onClose }: InstantAdminPanelProps) => {
                 Connexion Administrateur
               </h3>
               <p className="text-sm text-muted-foreground">
-                Système instantané local
+                Gestion des licenses personnalisées
               </p>
             </div>
 
@@ -140,53 +197,96 @@ const InstantAdminPanel = ({ open, onClose }: InstantAdminPanelProps) => {
           // Panel admin
           <div className="space-y-6 p-6">
             {/* Statistiques */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <Card>
                 <CardContent className="p-4 text-center">
                   <div className="text-2xl font-bold text-blue-600">
-                    {stats.totalValidLicenses}
+                    {stats.totalLicenses}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Clés Valides
+                    Total Licenses
                   </div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4 text-center">
                   <div className="text-2xl font-bold text-green-600">
-                    {stats.hasActiveLicense ? "Oui" : "Non"}
+                    {stats.activeLicenses}
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    License Active
+                  <div className="text-xs text-muted-foreground">Actives</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-red-600">
+                    {stats.expiredLicenses}
                   </div>
+                  <div className="text-xs text-muted-foreground">Expirées</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-orange-600">
+                    {stats.exhaustedLicenses}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Épuisées</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4 text-center">
                   <div className="text-sm font-bold text-purple-600">
-                    {stats.currentLicense || "Aucune"}
+                    {stats.hasActiveLicense ? "Oui" : "Non"}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    License Actuelle
+                    User Connecté
                   </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <div className="text-sm font-bold text-orange-600">
-                    {stats.systemType}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Système</div>
                 </CardContent>
               </Card>
             </div>
 
+            {/* Création de license */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Créer Nouvelle License</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-duration">Durée (jours)</Label>
+                    <Input
+                      id="admin-duration"
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={duration}
+                      onChange={(e) => setDuration(Number(e.target.value))}
+                      className="text-center"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-usages">Max Utilisations</Label>
+                    <Input
+                      id="admin-usages"
+                      type="number"
+                      min="1"
+                      max="10000"
+                      value={maxUsages}
+                      onChange={(e) => setMaxUsages(Number(e.target.value))}
+                      className="text-center"
+                    />
+                  </div>
+
+                  <Button onClick={createNewLicense} className="w-full">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Créer ({duration}j, {maxUsages} usages)
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Actions */}
             <div className="flex gap-2 flex-wrap">
-              <Button onClick={generateNewLicense}>
-                <Plus className="w-4 h-4 mr-2" />
-                Générer License
-              </Button>
               <Button variant="outline" onClick={clearUserLicense}>
                 <Trash2 className="w-4 h-4 mr-2" />
                 Clear User License
@@ -200,45 +300,112 @@ const InstantAdminPanel = ({ open, onClose }: InstantAdminPanelProps) => {
             {/* Liste des licenses */}
             <Card>
               <CardHeader>
-                <CardTitle>Clés Valides (Système Instant)</CardTitle>
+                <CardTitle>
+                  Licenses Personnalisées ({allLicenses.length})
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {validLicenses.map((license, index) => (
-                    <Card key={license} className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <code
-                              className="bg-muted px-2 py-1 rounded text-sm font-mono cursor-pointer hover:bg-primary/10 transition-colors"
-                              onClick={() => copyLicense(license)}
-                              title="Cliquer pour copier"
-                            >
-                              {license}
-                            </code>
-                            <Badge variant="default">
-                              {index < 5 ? "Prédéfinie" : "Générée"}
-                            </Badge>
-                            <Badge variant="default">Active</Badge>
+                {allLicenses.length === 0 ? (
+                  <div className="text-center p-8 text-muted-foreground">
+                    Aucune license créée
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {allLicenses.map((license, index) => {
+                      const daysRemaining = getDaysRemaining(license.expiresAt);
+                      const isExpired = daysRemaining <= 0;
+                      const isExhausted =
+                        license.currentUsages >= license.maxUsages;
+                      const isActive =
+                        !isExpired && !isExhausted && license.isActive;
+
+                      return (
+                        <Card
+                          key={license.key}
+                          className={`p-4 ${
+                            isExpired || isExhausted
+                              ? "bg-red-50 dark:bg-red-900/20"
+                              : isActive
+                                ? "bg-green-50 dark:bg-green-900/20"
+                                : ""
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-2 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <code
+                                  className="bg-muted px-2 py-1 rounded text-sm font-mono cursor-pointer hover:bg-primary/10 transition-colors"
+                                  onClick={() => copyLicense(license.key)}
+                                  title="Cliquer pour copier"
+                                >
+                                  {license.key}
+                                </code>
+                                <Badge
+                                  variant={
+                                    isActive
+                                      ? "default"
+                                      : isExpired
+                                        ? "destructive"
+                                        : isExhausted
+                                          ? "secondary"
+                                          : "outline"
+                                  }
+                                >
+                                  {isExpired
+                                    ? "Expirée"
+                                    : isExhausted
+                                      ? "Épuisée"
+                                      : isActive
+                                        ? "Active"
+                                        : "Inactive"}
+                                </Badge>
+                              </div>
+
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {isExpired
+                                    ? `Expirée (${Math.abs(daysRemaining)}j)`
+                                    : `${daysRemaining} jours restants`}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Hash className="w-3 h-3" />
+                                  {license.currentUsages}/{license.maxUsages}{" "}
+                                  usages
+                                </div>
+                                <div>
+                                  Créée: {formatDate(license.createdAt)}
+                                </div>
+                                <div>
+                                  Expire: {formatDate(license.expiresAt)}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => copyLicense(license.key)}
+                                title="Copier"
+                              >
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => deleteLicense(license.key)}
+                                title="Supprimer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            Clé #{index + 1} - Cliquer pour copier
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => copyLicense(license)}
-                            title="Copier"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
