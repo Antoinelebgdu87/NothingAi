@@ -10,7 +10,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Key, Plus, Eye, EyeOff, Download, Copy } from "lucide-react";
+import {
+  Shield,
+  Key,
+  Plus,
+  Eye,
+  EyeOff,
+  Download,
+  Copy,
+  Trash2,
+} from "lucide-react";
 import {
   simpleLicenseManager,
   type SimpleLicense,
