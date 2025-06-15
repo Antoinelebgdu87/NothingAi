@@ -233,12 +233,13 @@ const ImageUploadModal = ({
 
             <Button
               onClick={handleSendAndClose}
-              disabled={images.length === 0}
+              disabled={!images || images.length === 0}
               className="flex items-center space-x-2 pro-button"
             >
               <Send className="w-4 h-4" />
               <span>
-                Analyser {images.length > 0 ? `(${images.length})` : ""}
+                Analyser{" "}
+                {images && images.length > 0 ? `(${images.length})` : ""}
               </span>
             </Button>
           </div>
