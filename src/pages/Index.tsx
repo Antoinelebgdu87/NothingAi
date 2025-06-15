@@ -13,17 +13,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -58,8 +47,6 @@ import {
   Paperclip,
   History,
   ExternalLink,
-  Trash,
-  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useImageGeneration } from "@/hooks/use-image-generation";
@@ -72,7 +59,7 @@ import ImageGenerationModal from "@/components/ui/image-generation-modal";
 import GeneratedImagesDisplay from "@/components/ui/generated-images-display";
 import ConversationSidebar from "@/components/ui/conversation-sidebar";
 import { PageLoading } from "@/components/ui/loading-spinner";
-import { simpleLicenseManager } from "@/lib/simple-license-manager";
+import DeleteAccountButton from "@/components/ui/delete-account-button";
 
 const Index = () => {
   const {
@@ -87,77 +74,45 @@ const Index = () => {
     stopGeneration,
     clearMessages,
     updateSettings,
-    regenerateLastMessage,
-    exportChat,
-    conversations,
-    currentConversationId,
-    loadConversationById,
-    deleteConversation,
-    getStats,
-    clearAllData,
-    imageAnalysis,
-    imageGeneration,
   } = useChat();
 
-  const [input, setInput] = useState("");
-  const [showSettings, setShowSettings] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(false);
-  const [showImageUpload, setShowImageUpload] = useState(false);
-  const [showImageGeneration, setShowImageGeneration] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const imageGeneration = useImageGeneration();
+  const isMobile = useMobile();
 
-  // Auto-scroll to bottom when new messages arrive
+  const [prompt, setPrompt] = useState("");
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [showGenerationModal, setShowGenerationModal] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Focus input on mount
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isStreaming) return;
+    if (!prompt.trim() || isStreaming) return;
 
-    sendMessage(input);
-    setInput("");
+    const currentPrompt = prompt;
+    setPrompt("");
+    await sendMessage(currentPrompt);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
-    }
-  };
-
-  const handleImageSend = () => {
-    if (imageAnalysis.hasImages) {
-      setInput("Analyse ces images pour moi");
-      setTimeout(() => {
-        handleSubmit(new Event("submit") as any);
-      }, 100);
-    }
-  };
-
-  const getModelCategory = (modelId: string) => {
-    if (recommendedModels.free.includes(modelId)) return "free";
-    if (recommendedModels.affordable.includes(modelId)) return "affordable";
-    if (recommendedModels.premium.includes(modelId)) return "premium";
+  const getModelCategory = (modelName: string) => {
+    if (recommendedModels.free.includes(modelName)) return "free";
+    if (recommendedModels.premium.includes(modelName)) return "premium";
     return "unknown";
   };
 
   const getModelIcon = (category: string) => {
     switch (category) {
       case "free":
-        return <Zap className="w-3 h-3" />;
-      case "affordable":
-        return <Brain className="w-3 h-3" />;
+        return <Zap className="w-4 h-4" />;
       case "premium":
-        return <Crown className="w-3 h-3" />;
+        return <Crown className="w-4 h-4" />;
       default:
-        return <Sparkles className="w-3 h-3" />;
+        return <Brain className="w-4 h-4" />;
     }
   };
 
@@ -165,8 +120,6 @@ const Index = () => {
     switch (category) {
       case "free":
         return "bg-green-500/10 text-green-500 border-green-500/20";
-      case "affordable":
-        return "bg-blue-500/10 text-blue-500 border-blue-500/20";
       case "premium":
         return "bg-purple-500/10 text-purple-500 border-purple-500/20";
       default:
@@ -199,582 +152,382 @@ const Index = () => {
               </div>
               <span className="text-xl font-bold">NothingAI</span>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearMessages}
-              className="pro-button h-8 px-3 text-xs"
-            >
-              <Plus className="w-3 h-3 mr-1" />
-              Nouveau
-            </Button>
           </div>
 
-          {/* Simplified Navigation - Only Chat and History */}
-          <div className="space-y-2">
+          <div className="space-y-3">
+            <Button
+              onClick={() => clearMessages()}
+              className="w-full"
+              variant="outline"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Nouvelle conversation
+            </Button>
+
+            <Button
+              onClick={() => setShowGenerationModal(true)}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Générer une image
+            </Button>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <div className="p-4 space-y-2">
+          {imageGeneration.generatedImages.length > 0 && (
+            <Link to="/images">
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => setShowSidebar(false)}
+              >
+                <ImageIcon className="w-4 h-4 mr-2" />
+                Images générées
+                <Badge className="ml-auto bg-primary text-primary-foreground">
+                  {imageGeneration.generatedImages.length}
+                </Badge>
+                <ExternalLink className="w-3 h-3 ml-auto" />
+              </Button>
+            </Link>
+          )}
+
+          <Link to="/settings">
             <Button
               variant="ghost"
               className="w-full justify-start"
-              onClick={() => setShowImageUpload(true)}
+              onClick={() => setShowSidebar(false)}
             >
-              <ImageIcon className="w-4 h-4 mr-2" />
-              Analyser des Images
-              {imageAnalysis.hasImages && (
-                <Badge className="ml-auto text-xs">
-                  {imageAnalysis.uploadedImages.length}
-                </Badge>
-              )}
+              <Settings className="w-4 h-4 mr-2" />
+              Paramètres
+              <ExternalLink className="w-3 h-3 ml-auto" />
             </Button>
-          </div>
+          </Link>
+
+          {/* Bouton Supprimer Compte */}
+          <DeleteAccountButton />
         </div>
 
-        {/* Conversations History */}
-        <div className="flex-1">
-          <ConversationSidebar
-            conversations={conversations}
-            currentConversationId={currentConversationId}
-            onLoadConversation={loadConversationById}
-            onDeleteConversation={deleteConversation}
-            onNewConversation={clearMessages}
-            onExportConversation={exportChat}
-            onClearAllData={clearAllData}
-            stats={getStats()}
-            className="border-0"
-          />
-        </div>
+        {/* Affichage des images générées */}
+        {imageGeneration.generatedImages.length > 0 && (
+          <div className="mt-4 px-2">
+            <GeneratedImagesDisplay />
+          </div>
+        )}
+
+        {/* Conversations */}
+        <ConversationSidebar />
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="pro-header">
-          <div className="flex items-center justify-between px-6 py-4">
-            <div className="flex items-center space-x-4">
-              {/* Mobile Menu */}
-              <Sheet open={showSidebar} onOpenChange={setShowSidebar}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="sm" className="lg:hidden">
-                    <Menu className="w-4 h-4" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-80 p-0">
-                  <div className="p-4 border-b">
-                    <h1 className="text-xl font-bold">NothingAI</h1>
-                  </div>
-                  <div className="p-4 space-y-2">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start"
-                      onClick={() => {
-                        setShowImageUpload(true);
-                        setShowSidebar(false);
-                      }}
-                    >
-                      <ImageIcon className="w-4 h-4 mr-2" />
-                      Analyser des Images
-                    </Button>
+        {/* Header Mobile */}
+        {isMobile && (
+          <div className="flex items-center justify-between p-4 border-b border-border/50 bg-card/95 backdrop-blur-sm">
+            <Sheet open={showSidebar} onOpenChange={setShowSidebar}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-80 p-0">
+                <SheetHeader className="p-4 border-b">
+                  <SheetTitle>NothingAI</SheetTitle>
+                </SheetHeader>
+                <div className="p-4">
+                  <DeleteAccountButton />
+                </div>
+              </SheetContent>
+            </Sheet>
 
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start"
-                      onClick={() => {
-                        setShowImageGeneration(true);
-                        setShowSidebar(false);
-                      }}
-                    >
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Générer une Image
-                    </Button>
-
-                    {imageGeneration.generatedImages.length > 0 && (
-                      <Link to="/images">
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start"
-                          onClick={() => setShowSidebar(false)}
-                        >
-                          <ImageIcon className="w-4 h-4 mr-2" />
-                          Mes Images ({imageGeneration.generatedImages.length})
-                          <ExternalLink className="w-3 h-3 ml-auto" />
-                        </Button>
-                      </Link>
-                    )}
-
-                    <Link to="/settings">
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => setShowSidebar(false)}
-                      >
-                        <Settings className="w-4 h-4 mr-2" />
-                        Paramètres
-                        <ExternalLink className="w-3 h-3 ml-auto" />
-                      </Button>
-                    </Link>
-
-                    {/* Bouton Supprimer Compte */}
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash className="w-4 h-4 mr-2" />
-                          Supprimer compte
-                          <AlertTriangle className="w-3 h-3 ml-auto" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle className="flex items-center gap-2">
-                            <AlertTriangle className="w-5 h-5 text-red-500" />
-                            Supprimer le compte
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            <div className="space-y-3">
-                              <p>
-                                <strong>Attention :</strong> Cette action va
-                                supprimer définitivement votre compte et toutes
-                                vos données.
-                              </p>
-                              <div className="bg-red-50 p-3 rounded-lg border border-red-200">
-                                <p className="text-red-800 text-sm">
-                                  ⚠️ <strong>Conséquences :</strong>
-                                </p>
-                                <ul className="text-red-700 text-sm mt-2 space-y-1">
-                                  <li>
-                                    • Votre license actuelle sera révoquée
-                                  </li>
-                                  <li>
-                                    • Tous vos conversations seront perdues
-                                  </li>
-                                  <li>
-                                    • Les images générées seront supprimées
-                                  </li>
-                                  <li>• Une nouvelle license sera requise</li>
-                                </ul>
-                              </div>
-                              <p className="text-sm text-gray-600">
-                                Cette action est irréversible. Êtes-vous sûr de
-                                vouloir continuer ?
-                              </p>
-                            </div>
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Annuler</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-red-600 hover:bg-red-700"
-                            onClick={() => {
-                              // Supprimer complètement le compte
-                              simpleLicenseManager.deleteAccount();
-
-                              toast.success("Compte supprimé avec succès !", {
-                                description: "Redirection vers l'écran de license..."
-                              });
-
-                              // Recharger la page pour retourner à l'écran de license
-                              setTimeout(() => {
-                                window.location.reload();
-                              }, 1500);
-                            }}
-                          >
-                            Supprimer définitivement
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-
-                    {/* Affichage des images générées */}
-                    {imageGeneration.generatedImages.length > 0 && (
-                      <div className="mt-4 px-2">
-                        <GeneratedImagesDisplay />
-                      </div>
-                    )}
-                  </div>
-                  <ConversationSidebar
-                    conversations={conversations}
-                    currentConversationId={currentConversationId}
-                    onLoadConversation={(id) => {
-                      loadConversationById(id);
-                      setShowSidebar(false);
-                    }}
-                    onDeleteConversation={deleteConversation}
-                    onNewConversation={() => {
-                      clearMessages();
-                      setShowSidebar(false);
-                    }}
-                    onExportConversation={exportChat}
-                    onClearAllData={clearAllData}
-                    stats={getStats()}
-                    className="border-0"
-                  />
-                </SheetContent>
-              </Sheet>
-
-              {/* Logo for mobile */}
-              <div className="lg:hidden">
-                <h1 className="text-lg font-bold">NothingAI</h1>
-              </div>
-
-              {/* Model Badge */}
+            <div className="flex items-center space-x-2">
               <Badge
-                variant="outline"
                 className={cn(
-                  "pro-badge flex items-center space-x-1",
+                  "text-xs border",
                   getModelColor(getModelCategory(settings.model)),
                 )}
               >
                 {getModelIcon(getModelCategory(settings.model))}
-                <span className="text-xs font-medium">
-                  {settings.model
-                    .split("/")
-                    .pop()
-                    ?.replace("-instruct", "")
-                    .replace(":free", "")}
+                <span className="ml-1">
+                  {settings.model?.split("/").pop()?.replace("-instruct", "")}
                 </span>
               </Badge>
-
-              {/* Feature indicators */}
-              <div className="hidden md:flex items-center space-x-2">
-                {imageAnalysis.hasImages && (
-                  <Badge className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">
-                    <ImageIcon className="w-3 h-3 mr-1" />
-                    {imageAnalysis.uploadedImages.length} image(s) prête(s)
-                  </Badge>
-                )}
-                {imageGeneration.generatedImages.length > 0 && (
-                  <Badge className="text-xs bg-purple-500/10 text-purple-500 border-purple-500/20">
-                    <Sparkles className="w-3 h-3 mr-1" />
-                    {imageGeneration.generatedImages.length} générée(s)
-                  </Badge>
-                )}
-              </div>
             </div>
 
-            {/* Header Actions */}
-            <div className="flex items-center space-x-2">
-              {/* Settings */}
-              <Dialog open={showSettings} onOpenChange={setShowSettings}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="focus-ring">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Paramètres
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto glass-card">
-                  <DialogHeader>
-                    <DialogTitle>Paramètres de Chat</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-6">
-                    {/* Model Selection */}
-                    <div className="space-y-3">
-                      <Label>Modèle IA</Label>
-                      <Select
-                        value={settings.model}
-                        onValueChange={(value) =>
-                          updateSettings({ model: value })
-                        }
-                      >
-                        <SelectTrigger className="focus-ring">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <div className="p-2">
-                            <div className="mb-2">
-                              <h4 className="text-sm font-medium text-green-500 mb-1 flex items-center">
-                                <Zap className="w-3 h-3 mr-1" />
-                                Modèles Gratuits
-                              </h4>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-medium text-purple-500 mb-1 flex items-center">
-                                <Crown className="w-3 h-3 mr-1" />
-                                Modèles Premium
-                              </h4>
-                              {recommendedModels.premium.map((model) => (
-                                <SelectItem key={model} value={model}>
-                                  <div className="flex items-center space-x-2">
-                                    <span>
-                                      {model
-                                        .split("/")
-                                        .pop()
-                                        ?.replace("-instruct", "")}
-                                    </span>
-                                    <Badge className="bg-purple-500/10 text-purple-500 text-xs">
-                                      Premium
-                                    </Badge>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </div>
+            {/* Settings */}
+            <Dialog open={showSettings} onOpenChange={setShowSettings}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Settings className="w-4 h-4 mr-2" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Paramètres IA</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label>Modèle IA</Label>
+                    <Select
+                      value={settings.model}
+                      onValueChange={(value) =>
+                        updateSettings({ model: value })
+                      }
+                    >
+                      <SelectTrigger className="focus-ring">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <div className="p-2">
+                          <div className="mb-2">
+                            <h4 className="text-sm font-medium text-green-500 mb-1 flex items-center">
+                              <Zap className="w-3 h-3 mr-1" />
+                              Modèles Gratuits
+                            </h4>
+                            {recommendedModels.free.map((model) => (
+                              <SelectItem key={model} value={model}>
+                                <div className="flex items-center space-x-2">
+                                  <span>
+                                    {model
+                                      .split("/")
+                                      .pop()
+                                      ?.replace("-instruct", "")}
+                                  </span>
+                                  <Badge className="bg-green-500/10 text-green-500 text-xs">
+                                    Gratuit
+                                  </Badge>
+                                </div>
+                              </SelectItem>
+                            ))}
                           </div>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                          <div>
+                            <h4 className="text-sm font-medium text-purple-500 mb-1 flex items-center">
+                              <Crown className="w-3 h-3 mr-1" />
+                              Modèles Premium
+                            </h4>
+                            {recommendedModels.premium.map((model) => (
+                              <SelectItem key={model} value={model}>
+                                <div className="flex items-center space-x-2">
+                                  <span>
+                                    {model
+                                      .split("/")
+                                      .pop()
+                                      ?.replace("-instruct", "")}
+                                  </span>
+                                  <Badge className="bg-purple-500/10 text-purple-500 text-xs">
+                                    Pro
+                                  </Badge>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </div>
+                        </div>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                    {/* Temperature */}
-                    <div className="space-y-3">
+                  <div className="space-y-3">
+                    <div className="space-y-2">
                       <Label>Température: {settings.temperature}</Label>
                       <Slider
                         value={[settings.temperature]}
-                        onValueChange={([value]) =>
+                        onValueChange={(value) =>
                           updateSettings({ temperature: value })
                         }
-                        min={0}
                         max={2}
+                        min={0}
                         step={0.1}
-                        className="w-full"
+                        className="focus-ring"
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Contrôle la créativité. Plus bas = plus focalisé, Plus
-                        haut = plus créatif
-                      </p>
                     </div>
 
-                    {/* Max Tokens */}
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <Label>Max Tokens: {settings.maxTokens}</Label>
                       <Slider
                         value={[settings.maxTokens]}
-                        onValueChange={([value]) =>
+                        onValueChange={(value) =>
                           updateSettings({ maxTokens: value })
                         }
-                        min={256}
-                        max={4096}
-                        step={256}
-                        className="w-full"
+                        max={8000}
+                        min={100}
+                        step={100}
+                        className="focus-ring"
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Longueur maximale des réponses de l'IA
-                      </p>
                     </div>
 
-                    {/* System Message */}
-                    <div className="space-y-3">
-                      <Label>Message Système</Label>
+                    <div className="space-y-2">
+                      <Label>Message système</Label>
                       <Textarea
                         value={settings.systemMessage}
                         onChange={(e) =>
                           updateSettings({ systemMessage: e.target.value })
                         }
-                        placeholder="Entrez les instructions système..."
-                        className="min-h-[100px] focus-ring"
+                        className="focus-ring"
+                        rows={3}
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Instructions qui guident le comportement et la
-                        personnalité de l'IA
-                      </p>
                     </div>
                   </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        </header>
-
-        {/* Chat Area */}
-        <div className="flex-1 flex flex-col">
-          {/* Messages */}
-          <ScrollArea className="flex-1">
-            <div
-              className="max-w-4xl mx-auto"
-              onDrop={imageAnalysis.handleDrop}
-              onDragOver={imageAnalysis.handleDragOver}
-              onDragLeave={imageAnalysis.handleDragLeave}
-            >
-              {/* Drop overlay */}
-              {imageAnalysis.isDragging && (
-                <div className="fixed inset-0 z-50 bg-primary/10 backdrop-blur-sm flex items-center justify-center">
-                  <div className="glass-card rounded-2xl p-8 text-center border-2 border-dashed border-primary">
-                    <ImageIcon className="w-16 h-16 mx-auto mb-4 text-primary" />
-                    <p className="text-xl font-semibold mb-2">
-                      Relâchez pour analyser vos images
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      JPG, PNG, GIF, WebP jusqu'à 10MB
-                    </p>
-                  </div>
                 </div>
-              )}
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
 
-              {messages.map((message, index) => (
-                <ChatMessageComponent
-                  key={message.id}
-                  message={message}
-                  onRegenerate={regenerateLastMessage}
-                  showRegenerate={
-                    index === messages.length - 1 &&
-                    message.role === "assistant" &&
-                    !message.isStreaming
-                  }
-                />
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-          </ScrollArea>
-
-          {/* Input Area */}
-          <div className="border-t border-border/30 bg-card/30 backdrop-blur-md">
-            <div className="max-w-4xl mx-auto p-6">
-              {/* Stop Generation Button */}
-              {isStreaming && (
-                <div className="mb-4 flex justify-center">
+        {/* Messages Area */}
+        <ScrollArea className="flex-1 p-4">
+          <div className="max-w-4xl mx-auto">
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full min-h-[50vh] text-center">
+                <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center mb-4">
+                  <Brain className="w-8 h-8 text-white" />
+                </div>
+                <h1 className="text-2xl font-bold mb-2">
+                  Bienvenue sur NothingAI
+                </h1>
+                <p className="text-muted-foreground mb-6 max-w-md">
+                  Votre assistant IA intelligent. Posez-moi n'importe quelle
+                  question ou demandez-moi de générer du contenu créatif.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
                   <Button
                     variant="outline"
-                    onClick={stopGeneration}
-                    className="flex items-center space-x-2 hover-lift focus-ring"
+                    className="h-auto p-4 text-left"
+                    onClick={() =>
+                      setPrompt("Explique-moi comment fonctionne l'IA")
+                    }
                   >
-                    <StopCircle className="w-4 h-4" />
-                    <span>Arrêter la génération</span>
+                    <div>
+                      <div className="font-medium">
+                        Comment fonctionne l'IA ?
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Découvrez les concepts de base
+                      </div>
+                    </div>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-auto p-4 text-left"
+                    onClick={() => setPrompt("Écris-moi un poème sur l'océan")}
+                  >
+                    <div>
+                      <div className="font-medium">Créer du contenu</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Poèmes, histoires, articles...
+                      </div>
+                    </div>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-auto p-4 text-left"
+                    onClick={() =>
+                      setPrompt(
+                        "Aide-moi à créer un plan d'entraînement sportif",
+                      )
+                    }
+                  >
+                    <div>
+                      <div className="font-medium">Conseils personnalisés</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Santé, fitness, nutrition...
+                      </div>
+                    </div>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-auto p-4 text-left"
+                    onClick={() => setShowGenerationModal(true)}
+                  >
+                    <div>
+                      <div className="font-medium">Générer des images</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Art, illustrations, concepts...
+                      </div>
+                    </div>
                   </Button>
                 </div>
-              )}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {messages.map((message, index) => (
+                  <ChatMessageComponent
+                    key={index}
+                    message={message}
+                    onRegenerate={
+                      message.role === "assistant"
+                        ? () => {
+                            const userMessage = messages[index - 1];
+                            if (userMessage) {
+                              sendMessage(userMessage.content);
+                            }
+                          }
+                        : undefined
+                    }
+                  />
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </div>
+        </ScrollArea>
 
-              {/* Image Preview */}
-              {imageAnalysis.hasImages && (
-                <div className="mb-4 p-3 bg-muted/20 rounded-xl border border-border/30">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                      <ImageIcon className="w-4 h-4" />
-                      <span>
-                        {imageAnalysis.uploadedImages.length} image(s) prête(s)
-                        pour l'analyse
-                      </span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={imageAnalysis.clearAllImages}
-                      className="h-7 px-2 text-xs"
-                    >
-                      Supprimer tout
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Input Form */}
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="relative flex items-end space-x-2">
-                  {/* Attachment Button */}
+        {/* Input Area */}
+        <div className="border-t border-border/50 bg-card/95 backdrop-blur-sm">
+          <div className="max-w-4xl mx-auto p-4">
+            <form onSubmit={handleSubmit} className="flex gap-2">
+              <div className="flex-1 relative">
+                <Input
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Tapez votre message..."
+                  className="pr-20 focus-ring"
+                  disabled={isStreaming}
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
                   <Button
                     type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowImageUpload(true)}
-                    className={cn(
-                      "mb-1 focus-ring",
-                      imageAnalysis.hasImages && "bg-primary/10 text-primary",
-                    )}
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={() => setShowImageModal(true)}
                   >
                     <Paperclip className="w-4 h-4" />
                   </Button>
-
-                  {/* Image Generation Button */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowImageGeneration(true)}
-                    className="mb-1 focus-ring"
-                    title="Générer une image avec IA"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                  </Button>
-
-                  {/* Text Input */}
-                  <div className="relative flex-1">
-                    <Input
-                      ref={inputRef}
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder={
-                        imageAnalysis.hasImages
-                          ? "Posez une question sur vos images..."
-                          : "Envoyez un message à NothingAI... (ou 'génère une image de...')"
-                      }
-                      disabled={isStreaming}
-                      className="pro-input pr-14 resize-none"
-                    />
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={!input.trim() || isStreaming}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 p-0 pro-button"
-                    >
-                      <Send className="w-4 h-4" />
-                    </Button>
-                  </div>
                 </div>
-
-                {/* Footer */}
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <div className="flex space-x-4">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={exportChat}
-                      className="h-7 px-2 hover-lift"
-                    >
-                      <Download className="w-3 h-3 mr-1" />
-                      Exporter
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        clearMessages();
-                        toast.success("Chat effacé !");
-                      }}
-                      className="h-7 px-2 hover-lift"
-                    >
-                      <Trash2 className="w-3 h-3 mr-1" />
-                      Nouveau chat
-                    </Button>
-                  </div>
-                  <span>
-                    <kbd className="px-2 py-1 bg-muted/50 rounded text-xs">
-                      ⏎
-                    </kbd>{" "}
-                    pour envoyer •{" "}
-                    <span className="text-blue-400">
-                      Analyse d'images • Génération gratuite
-                    </span>
-                  </span>
-                </div>
-              </form>
-            </div>
+              </div>
+              {isStreaming ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="destructive"
+                  onClick={stopGeneration}
+                >
+                  <StopCircle className="w-4 h-4" />
+                </Button>
+              ) : (
+                <Button type="submit" size="icon" disabled={!prompt.trim()}>
+                  <Send className="w-4 h-4" />
+                </Button>
+              )}
+            </form>
           </div>
         </div>
       </div>
 
-      {/* Image Upload Modal */}
+      {/* Modals */}
       <ImageUploadModal
-        open={showImageUpload}
-        onOpenChange={setShowImageUpload}
-        images={imageAnalysis.uploadedImages}
-        onImagesAdd={imageAnalysis.addImages}
-        onImageRemove={imageAnalysis.removeImage}
-        onClearAll={imageAnalysis.clearAllImages}
-        onSend={handleImageSend}
-        isDragging={imageAnalysis.isDragging}
-        onDrop={imageAnalysis.handleDrop}
-        onDragOver={imageAnalysis.handleDragOver}
-        onDragLeave={imageAnalysis.handleDragLeave}
+        open={showImageModal}
+        onOpenChange={setShowImageModal}
+        onImageSelect={(file) => {
+          console.log("Image sélectionnée:", file);
+          setShowImageModal(false);
+        }}
       />
 
-      {/* Image Generation Modal */}
       <ImageGenerationModal
-        open={showImageGeneration}
-        onOpenChange={setShowImageGeneration}
-        initialPrompt={
-          imageGeneration.detectImageGenerationIntent(input) ? input : ""
-        }
+        open={showGenerationModal}
+        onOpenChange={setShowGenerationModal}
       />
     </div>
   );
