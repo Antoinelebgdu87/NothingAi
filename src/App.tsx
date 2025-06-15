@@ -31,41 +31,44 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Version directe et simple - pas de complications
-    console.log("🚀 Démarrage simple de l'application...");
+    // Version ULTRA SIMPLE pour éviter les blocages
+    console.log("🚀 Démarrage ultra-simple...");
 
-    const checkLicense = async () => {
+    const quickCheck = () => {
       try {
-        console.log("🔍 Vérification des licenses...");
-
-        // Import du manager Firebase
-        const { firebaseLicenseManager } = await import(
-          "./lib/firebase-license-manager"
+        // Vérification locale TRÈS basique et rapide
+        const localLicense = localStorage.getItem(
+          "nothingai_user_license_firebase",
         );
+        console.log("📋 License locale trouvée:", !!localLicense);
 
-        // Vérification asynchrone avec Firebase
-        const hasValidLicense = await firebaseLicenseManager.hasValidLicense();
-        console.log("📋 License valide:", hasValidLicense);
-
-        setHasValidLicense(hasValidLicense);
-
-        if (hasValidLicense) {
-          console.log("✅ License valide - Accès à l'application");
+        // Si license trouvée localement, on fait confiance
+        if (localLicense && localLicense.length > 5) {
+          setHasValidLicense(true);
+          console.log("✅ License locale acceptée");
         } else {
-          console.log("❌ Aucune license valide - Page d'activation");
+          setHasValidLicense(false);
+          console.log("❌ Aucune license locale");
         }
       } catch (error) {
-        console.error("⚠️ Erreur vérification license:", error);
+        console.error("⚠️ Erreur check license:", error);
         setHasValidLicense(false);
       }
 
-      // Arrêter le loading dans tous les cas
+      // TOUJOURS arrêter le loading après 1 seconde max
       setIsLoading(false);
-      console.log("✅ Application initialisée");
+      console.log("✅ Loading terminé");
     };
 
-    // Petit délai pour l'effet visuel puis vérification directe
-    setTimeout(checkLicense, 300);
+    // Timeout très court pour éviter les blocages
+    setTimeout(quickCheck, 800);
+
+    // Timeout de sécurité absolu
+    setTimeout(() => {
+      console.log("⚠️ Timeout sécurité - Force stop loading");
+      setIsLoading(false);
+      setHasValidLicense(false);
+    }, 2000);
   }, []);
 
   useEffect(() => {
@@ -82,16 +85,14 @@ const App = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Écran de chargement simple
+  // Écran de chargement SIMPLE
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center text-white">
           <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-lg">Chargement de NothingAI...</p>
-          <p className="text-sm text-white/70 mt-2">
-            Vérification des licenses
-          </p>
+          <p className="text-sm text-white/70 mt-2">Vérification rapide</p>
         </div>
       </div>
     );
@@ -115,10 +116,13 @@ const App = () => {
             />
 
             {!hasValidLicense ? (
-              // Pas de license → Page d'activation directe (comme au début)
+              // PAS DE LICENSE → PAGE D'ACTIVATION (TOUJOURS accessible)
               <>
                 <FirebaseLicenseGate
-                  onLicenseValid={() => setHasValidLicense(true)}
+                  onLicenseValid={() => {
+                    console.log("🎉 License validée - Redirection app");
+                    setHasValidLicense(true);
+                  }}
                 />
                 {/* Panel Admin accessible même sans license */}
                 <FirebaseAdminPanel
@@ -127,7 +131,7 @@ const App = () => {
                 />
               </>
             ) : (
-              // License valide → Application complète
+              // LICENSE VALIDE → APPLICATION COMPLÈTE
               <BrowserRouter>
                 <Routes>
                   <Route path="/" element={<Index />} />
