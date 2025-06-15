@@ -5,6 +5,8 @@ import {
   type Message,
   RECOMMENDED_MODELS,
   getModelByCategory,
+  getSafeTokenLimit,
+  TOKEN_LIMITS,
 } from "@/lib/openrouter";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useImageAnalysis } from "@/hooks/use-image-analysis";
@@ -35,16 +37,16 @@ export interface ChatSettings {
 const DEFAULT_SETTINGS: ChatSettings = {
   model: getModelByCategory("free", 0),
   temperature: 0.7,
-  maxTokens: 2048,
+  maxTokens: 512, // Start with conservative limit
   systemMessage:
-    "Tu es NothingAI, un assistant IA français avancé créé pour être utile, inoffensif et honnête. Tu es intelligent, créatif et tu t'efforces de fournir la meilleure assistance possible aux utilisateurs. Tu peux analyser des images et aussi générer des images sur demande. Quand un utilisateur demande une image (ex: 'génère une image de...', 'crée une photo de...', etc.), tu peux automatiquement générer l'image demandée. Sois toujours respectueux et professionnel dans tes réponses. Réponds en français.",
+    "Tu es NothingAI, un assistant IA français avancé créé pour être utile, inoffensif et honnête. Tu es intelligent, créatif et tu t'efforces de fournir la meilleure assistance possible aux utilisateurs. Tu peux analyser des images et aussi générer des images sur demande. Quand un utilisateur demande une image (ex: 'génère une image de...', 'crée une photo de...', etc.), tu peux automatiquement générer l'image demandée. Sois concis mais informatif dans tes réponses. Sois toujours respectueux et professionnel. Réponds en français.",
 };
 
 const DEFAULT_WELCOME_MESSAGE: ChatMessage = {
   id: "welcome",
   role: "assistant",
   content:
-    "👋 Bienvenue sur **NothingAI** ! Je suis votre assistant IA français avancé, alimenté par les modèles de langage les plus récents.\n\nJe peux vous aider avec :\n- ✨ Rédaction créative et brainstorming\n- 🧠 Résolution de problèmes et analyse\n- 💻 Questions de programmation et techniques\n- 📚 Recherche et explications\n- 🖼️ **Analyse d'images** (glissez-déposez vos images !)\n- 🎨 **Génération d'images** (dites 'génère une image de...')\n- 🇫🇷 Et bien plus encore !\n\nQue souhaitez-vous explorer aujourd'hui ?",
+    "👋 Bienvenue sur **NothingAI** ! Je suis votre assistant IA français avancé.\n\nJe peux vous aider avec :\n- ✨ Questions et conversations\n- 🧠 Résolution de problèmes\n- 💻 Programmation et technique\n- 📚 Recherche et explications\n- 🖼️ **Analyse d'images** (cliquez sur 📎)\n- 🎨 **Génération d'images** (dites 'génère une image de...')\n\n💡 **Astuce** : J'utilise des réponses optimisées pour économiser vos crédits OpenRouter !\n\nQue puis-je faire pour vous ?",
   timestamp: new Date(),
   model: "system",
 };
@@ -55,6 +57,7 @@ export function useChat() {
   ]);
   const [settings, setSettings] = useState<ChatSettings>(DEFAULT_SETTINGS);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [creditWarning, setCreditWarning] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Local storage integration
@@ -87,6 +90,24 @@ export function useChat() {
     }
   }, [messages, settings, autoSaveConversation]);
 
+  // Check credit status periodically
+  useEffect(() => {
+    const checkCredits = async () => {
+      try {
+        const status = await openRouter.getCreditStatus();
+        if (status.credits < 1000 && !status.unlimited) {
+          setCreditWarning(true);
+        }
+      } catch (error) {
+        // Ignore credit check errors
+      }
+    };
+
+    checkCredits();
+    const interval = setInterval(checkCredits, 300000); // Check every 5 minutes
+    return () => clearInterval(interval);
+  }, []);
+
   // Get available models
   const { data: availableModels = [], isLoading: modelsLoading } = useQuery({
     queryKey: ["openrouter-models"],
@@ -99,7 +120,7 @@ export function useChat() {
     },
   });
 
-  // Send message mutation
+  // Send message mutation with credit-aware handling
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
       const userMessage: ChatMessage = {
@@ -177,18 +198,25 @@ export function useChat() {
           throw error;
         }
       } else {
-        // Handle regular chat message
+        // Handle regular chat message with credit-aware settings
         const systemMessage: Message = {
           role: "system",
           content: settings.systemMessage,
         };
 
-        // Prepare conversation messages
+        // Use safe token limit based on current model
+        const safeMaxTokens = getSafeTokenLimit(
+          settings.model,
+          settings.maxTokens,
+        );
+
+        // Prepare conversation messages with length limits for credit conservation
         const conversationMessages: Message[] = [systemMessage];
 
-        // Add previous messages (excluding welcome)
+        // Add previous messages (excluding welcome) but limit history for credit conservation
         const previousMessages = messages
           .filter((m) => m.role !== "system" && m.id !== "welcome")
+          .slice(-6) // Keep only last 6 messages to save tokens
           .map((m) => ({ role: m.role, content: m.content }));
 
         conversationMessages.push(...previousMessages);
@@ -224,7 +252,7 @@ export function useChat() {
         return new Promise<void>((resolve, reject) => {
           // Use vision-capable model if images are present
           const modelToUse = imageAnalysis.hasImages
-            ? "anthropic/claude-3.5-sonnet" // Use vision model for images
+            ? "anthropic/claude-3-haiku" // Use cheaper vision model to save credits
             : settings.model;
 
           openRouter.createStreamingChatCompletion(
@@ -232,7 +260,7 @@ export function useChat() {
             modelToUse,
             {
               temperature: settings.temperature,
-              max_tokens: settings.maxTokens,
+              max_tokens: safeMaxTokens, // Use safe token limit
               onToken: (token: string) => {
                 fullResponse += token;
                 setMessages((prev) =>
@@ -271,7 +299,20 @@ export function useChat() {
                   prev.filter((msg) => msg.id !== assistantMessageId),
                 );
                 setIsStreaming(false);
-                toast.error(`Échec de l'envoi du message: ${error.message}`);
+
+                // Handle credit-specific errors
+                if (
+                  error.message.includes("crédits") ||
+                  error.message.includes("credits")
+                ) {
+                  setCreditWarning(true);
+                  toast.error(
+                    "Crédits OpenRouter faibles. Utilisation de paramètres économiques.",
+                    { duration: 5000 },
+                  );
+                } else {
+                  toast.error(`Erreur: ${error.message}`);
+                }
                 reject(error);
               },
             },
@@ -313,7 +354,28 @@ export function useChat() {
   }, [imageAnalysis, startNewConversation]);
 
   const updateSettings = useCallback((newSettings: Partial<ChatSettings>) => {
-    setSettings((prev) => ({ ...prev, ...newSettings }));
+    setSettings((prev) => {
+      const updated = { ...prev, ...newSettings };
+
+      // Auto-adjust max tokens based on model change
+      if (newSettings.model && newSettings.model !== prev.model) {
+        const safeTokens = getSafeTokenLimit(
+          newSettings.model,
+          updated.maxTokens,
+        );
+        updated.maxTokens = safeTokens;
+
+        // Show info about token adjustment
+        if (safeTokens < updated.maxTokens) {
+          toast.info(
+            `Tokens ajustés à ${safeTokens} pour économiser vos crédits`,
+            { duration: 3000 },
+          );
+        }
+      }
+
+      return updated;
+    });
   }, []);
 
   const regenerateLastMessage = useCallback(() => {
@@ -377,12 +439,22 @@ export function useChat() {
     [loadConversation, imageAnalysis],
   );
 
-  // Get recommended models by category
+  // Get recommended models by category with token limits
   const recommendedModels = {
     free: RECOMMENDED_MODELS.free,
     affordable: RECOMMENDED_MODELS.affordable,
     premium: RECOMMENDED_MODELS.premium,
   };
+
+  // Get token limits for current model
+  const getTokenLimitsForCurrentModel = useCallback(() => {
+    const tier = RECOMMENDED_MODELS.free.includes(settings.model as any)
+      ? "free"
+      : RECOMMENDED_MODELS.affordable.includes(settings.model as any)
+        ? "affordable"
+        : "premium";
+    return TOKEN_LIMITS[tier];
+  }, [settings.model]);
 
   return {
     messages,
@@ -392,6 +464,7 @@ export function useChat() {
     availableModels,
     modelsLoading,
     recommendedModels,
+    creditWarning,
     sendMessage,
     stopGeneration,
     clearMessages,
@@ -410,6 +483,10 @@ export function useChat() {
     imageAnalysis,
     // Image generation features
     imageGeneration,
+    // Token management
+    getTokenLimitsForCurrentModel,
+    getSafeTokenLimit: (tokens: number) =>
+      getSafeTokenLimit(settings.model, tokens),
   };
 }
 
