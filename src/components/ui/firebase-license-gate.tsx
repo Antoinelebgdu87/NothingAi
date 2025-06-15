@@ -23,7 +23,7 @@ import {
   WifiOff,
   Database,
 } from "lucide-react";
-import { firebaseLicenseManager } from "@/lib/firebase-license-manager";
+import { hybridLicenseManager } from "@/lib/hybrid-license-manager";
 import { toast } from "sonner";
 
 interface FirebaseLicenseGateProps {
@@ -40,13 +40,20 @@ const FirebaseLicenseGate = ({ onLicenseValid }: FirebaseLicenseGateProps) => {
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const connected = await firebaseLicenseManager.testConnection();
+        const connected = await hybridLicenseManager.testConnection();
+        const status = hybridLicenseManager.getStatus();
         setIsConnected(connected);
 
+        console.log("🔌 Statut système de license:", status.mode);
+
         if (!connected) {
-          toast.error(
-            "Connexion Firebase indisponible. Veuillez réessayer plus tard.",
+          toast.warning(
+            `Service de licenses en mode ${status.mode}. Fonctionnalités limitées.`,
           );
+        } else {
+          toast.success(`Connecté au système de licenses (${status.mode})`, {
+            duration: 2000,
+          });
         }
       } catch (error) {
         setIsConnected(false);
@@ -77,11 +84,12 @@ const FirebaseLicenseGate = ({ onLicenseValid }: FirebaseLicenseGateProps) => {
     setIsValidating(true);
 
     try {
-      const result = await firebaseLicenseManager.useLicense(licenseKey.trim());
+      const result = await hybridLicenseManager.useLicense(licenseKey.trim());
+      const status = hybridLicenseManager.getStatus();
 
       if (result.success) {
         toast.success(
-          "License activée avec succès ! Bienvenue dans NothingAI ✨",
+          `License activée avec succès ! (${status.mode}) Bienvenue dans NothingAI ✨`,
           { duration: 3000 },
         );
 
@@ -224,34 +232,36 @@ const FirebaseLicenseGate = ({ onLicenseValid }: FirebaseLicenseGateProps) => {
                 className="w-full mt-2"
                 onClick={async () => {
                   try {
-                    console.log("🧪 Test Firebase complet...");
+                    console.log("🧪 Test système de license complet...");
                     const connected =
-                      await firebaseLicenseManager.testConnection();
-                    console.log("Connexion:", connected);
+                      await hybridLicenseManager.testConnection();
+                    const status = hybridLicenseManager.getStatus();
+                    console.log("Connexion:", connected, "Mode:", status.mode);
 
                     if (connected) {
                       const licenses =
-                        await firebaseLicenseManager.getAllLicenses();
+                        await hybridLicenseManager.getAllLicenses();
                       console.log("Licenses trouvées:", licenses);
 
                       if (licenseKey.trim()) {
                         const validation =
-                          await firebaseLicenseManager.validateLicense(
+                          await hybridLicenseManager.validateLicense(
                             licenseKey.trim(),
                           );
                         console.log("Test validation:", validation);
                       }
                     }
 
-                    toast.info(`Test terminé - Voir console pour détails`);
+                    toast.info(
+                      `Test terminé (${status.mode}) - Voir console pour détails`,
+                    );
                   } catch (error) {
                     console.error("Erreur test:", error);
                     toast.error("Erreur durant le test");
                   }
                 }}
-                disabled={isValidating || !isConnected}
               >
-                🧪 Test Firebase (Dev)
+                🧪 Test License System (Dev)
               </Button>
             )}
           </form>
