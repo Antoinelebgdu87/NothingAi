@@ -1,4 +1,4 @@
-// Système de sécurité et protection pour NothingAI - Version améliorée
+// Système de sécurité et protection pour NothingAI - Version adoucie
 class SecurityManager {
   private _protectionEnabled: boolean = true;
   private intervals: NodeJS.Timeout[] = [];
@@ -20,26 +20,23 @@ class SecurityManager {
     if (!this._protectionEnabled) return;
 
     try {
-      // Protection contre les DevTools
-      this.protectDevTools();
-
       // Protection contre le clic droit
       this.protectRightClick();
 
       // Protection contre les raccourcis clavier
       this.protectKeyboardShortcuts();
 
-      // Protection contre la sélection de texte
+      // Protection contre la sélection de texte (adoucie)
       this.protectTextSelection();
-
-      // Detection continue des DevTools
-      this.startDevToolsDetection();
 
       // Protection contre le drag & drop
       this.protectDragDrop();
 
       // Protection contre l'impression
       this.protectPrint();
+
+      // Détection DevTools adoucie (pas de redirection forcée)
+      this.startDevToolsDetection();
     } catch (error) {
       console.warn("Erreur lors de l'activation de la protection:", error);
     }
@@ -58,95 +55,6 @@ class SecurityManager {
         `Erreur lors de l'ajout de l'event listener ${event}:`,
         error,
       );
-    }
-  }
-
-  private protectDevTools() {
-    try {
-      // Redefinir console pour masquer les logs (seulement en production)
-      if (import.meta.env.PROD) {
-        const noop = () => {};
-        Object.keys(console).forEach((key) => {
-          try {
-            (console as any)[key] = noop;
-          } catch (error) {
-            // Certaines propriétés peuvent être en lecture seule
-          }
-        });
-      }
-
-      // Protection contre l'ouverture des DevTools
-      let devtools = { open: false };
-      const threshold = 160;
-
-      const checkDevTools = () => {
-        try {
-          if (
-            window.outerHeight - window.innerHeight > threshold ||
-            window.outerWidth - window.innerWidth > threshold
-          ) {
-            if (!devtools.open) {
-              devtools.open = true;
-              this.onDevToolsDetected();
-            }
-          } else {
-            devtools.open = false;
-          }
-        } catch (error) {
-          // Ignorer les erreurs de détection
-        }
-      };
-
-      const interval = setInterval(checkDevTools, 500);
-      this.intervals.push(interval);
-    } catch (error) {
-      console.warn("Erreur lors de la protection des DevTools:", error);
-    }
-  }
-
-  private onDevToolsDetected() {
-    try {
-      // Rediriger vers une page blanche
-      const overlay = document.createElement("div");
-      overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: #000;
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: Arial, sans-serif;
-        z-index: 999999;
-      `;
-
-      overlay.innerHTML = `
-        <div style="text-align: center;">
-          <h1>🔒 Accès Restreint</h1>
-          <p>Les outils de développement ne sont pas autorisés.</p>
-          <p>Fermez les DevTools pour continuer.</p>
-          <p style="font-size: 12px; margin-top: 20px; opacity: 0.7;">
-            Rechargement automatique dans 3 secondes...
-          </p>
-        </div>
-      `;
-
-      document.body.appendChild(overlay);
-
-      // Bloquer l'exécution
-      setTimeout(() => {
-        try {
-          location.reload();
-        } catch (error) {
-          // Si le reload échoue, retirer l'overlay
-          overlay.remove();
-        }
-      }, 3000);
-    } catch (error) {
-      console.warn("Erreur lors de la détection des DevTools:", error);
     }
   }
 
@@ -170,9 +78,7 @@ class SecurityManager {
             e.shiftKey &&
             (e.key === "I" || e.key === "J" || e.key === "C")) ||
           (e.ctrlKey && (e.key === "u" || e.key === "U")) ||
-          (e.ctrlKey && (e.key === "s" || e.key === "S")) ||
-          (e.ctrlKey && (e.key === "a" || e.key === "A")) ||
-          (e.ctrlKey && (e.key === "p" || e.key === "P"))
+          (e.ctrlKey && (e.key === "s" || e.key === "S"))
         ) {
           // Exception pour Ctrl+F1 (admin panel)
           if (e.ctrlKey && e.key === "F1") {
@@ -193,33 +99,40 @@ class SecurityManager {
 
   private protectTextSelection() {
     try {
+      // Protection plus douce - permettre la sélection dans les inputs
       const handleSelectStart = (e: Event) => {
-        e.preventDefault();
-        return false;
-      };
+        const target = e.target as HTMLElement;
 
-      const handleDragStart = (e: Event) => {
+        // Permettre la sélection dans les éléments d'input
+        if (
+          target &&
+          (target.tagName === "INPUT" ||
+            target.tagName === "TEXTAREA" ||
+            target.contentEditable === "true" ||
+            target.closest("input, textarea, [contenteditable]"))
+        ) {
+          return true;
+        }
+
         e.preventDefault();
         return false;
       };
 
       this.addEventListenerSafe(document, "selectstart", handleSelectStart);
-      this.addEventListenerSafe(document, "dragstart", handleDragStart);
 
-      // CSS pour désactiver la sélection
+      // CSS pour désactiver la sélection (plus sélectif)
       const style = document.createElement("style");
       style.id = "nothingai-security-styles";
       style.textContent = `
-        * {
+        body, div, p, h1, h2, h3, h4, h5, h6, span, button {
           -webkit-user-select: none !important;
           -moz-user-select: none !important;
           -ms-user-select: none !important;
           user-select: none !important;
           -webkit-touch-callout: none !important;
-          -webkit-tap-highlight-color: transparent !important;
         }
         
-        input, textarea, [contenteditable="true"] {
+        input, textarea, [contenteditable="true"], code, pre {
           -webkit-user-select: text !important;
           -moz-user-select: text !important;
           -ms-user-select: text !important;
@@ -237,6 +150,9 @@ class SecurityManager {
 
   private startDevToolsDetection() {
     try {
+      // Détection plus douce des DevTools - juste bloquer certaines actions
+      let devToolsWarningShown = false;
+
       const devToolsDetector = () => {
         try {
           const before = new Date().getTime();
@@ -244,16 +160,17 @@ class SecurityManager {
           const after = new Date().getTime();
 
           if (after - before > 100) {
-            this.onDevToolsDetected();
+            this.onDevToolsDetected(devToolsWarningShown);
+            devToolsWarningShown = true;
           }
         } catch (error) {
           // Ignorer les erreurs du debugger
         }
       };
 
-      // Vérification périodique seulement en production
+      // Vérification périodique plus espacée
       if (import.meta.env.PROD) {
-        const interval = setInterval(devToolsDetector, 2000);
+        const interval = setInterval(devToolsDetector, 5000);
         this.intervals.push(interval);
       }
     } catch (error) {
@@ -261,13 +178,57 @@ class SecurityManager {
     }
   }
 
+  private onDevToolsDetected(warningShown: boolean) {
+    try {
+      // Réponse plus douce - juste un avertissement discret
+      if (!warningShown) {
+        console.clear();
+        console.log(
+          "🔒 NothingAI - Inspection désactivée pour des raisons de sécurité",
+        );
+
+        // Notification discrète sans bloquer l'interface
+        if (typeof window !== "undefined" && (window as any).toast) {
+          (window as any).toast("🔒 Inspection désactivée", {
+            duration: 3000,
+          });
+        }
+      }
+
+      // Juste nettoyer la console périodiquement
+      setTimeout(() => {
+        try {
+          console.clear();
+        } catch (error) {
+          // Ignorer si console.clear échoue
+        }
+      }, 1000);
+    } catch (error) {
+      console.warn("Erreur lors de la détection des DevTools:", error);
+    }
+  }
+
   private protectDragDrop() {
     const handleDragOver = (e: Event) => {
+      const target = e.target as HTMLElement;
+
+      // Permettre le drag & drop dans certains éléments
+      if (target && target.closest("[data-allow-drop]")) {
+        return;
+      }
+
       e.preventDefault();
       e.stopPropagation();
     };
 
     const handleDrop = (e: Event) => {
+      const target = e.target as HTMLElement;
+
+      // Permettre le drop dans certains éléments
+      if (target && target.closest("[data-allow-drop]")) {
+        return;
+      }
+
       e.preventDefault();
       e.stopPropagation();
     };
@@ -280,15 +241,24 @@ class SecurityManager {
     try {
       const handleBeforePrint = (e: Event) => {
         e.preventDefault();
+        console.log("🔒 Impression désactivée pour des raisons de sécurité");
         return false;
       };
 
       this.addEventListenerSafe(window, "beforeprint", handleBeforePrint);
 
-      // Redéfinir window.print avec protection
+      // Redéfinir window.print avec message plus doux
       const originalPrint = window.print;
       window.print = function () {
-        console.warn("Impression désactivée pour des raisons de sécurité");
+        console.log("🔒 Impression désactivée pour des raisons de sécurité");
+
+        // Notification si possible
+        if (typeof window !== "undefined" && (window as any).toast) {
+          (window as any).toast("🔒 Impression désactivée", {
+            duration: 3000,
+          });
+        }
+
         return false;
       };
 
@@ -362,6 +332,7 @@ class SecurityManager {
       activeIntervals: this.intervals.length,
       activeListeners: this.eventListeners.length,
       environment: import.meta.env.MODE,
+      protectionLevel: "soft", // Protection douce
     };
   }
 }
@@ -383,6 +354,7 @@ try {
       activeIntervals: 0,
       activeListeners: 0,
       environment: import.meta.env.MODE,
+      protectionLevel: "none",
     }),
   } as any;
 }
