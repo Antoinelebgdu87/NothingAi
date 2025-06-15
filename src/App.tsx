@@ -9,15 +9,15 @@ import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import GeneratedImages from "./pages/GeneratedImages";
 import NotFound from "./pages/NotFound";
-import FirebaseLicenseGate from "./components/ui/firebase-license-gate";
-import FirebaseAdminPanel from "./components/ui/firebase-admin-panel";
+import InstantLicenseGate from "./components/ui/instant-license-gate";
+import InstantAdminPanel from "./components/ui/instant-admin-panel";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 2,
       refetchOnWindowFocus: false,
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60 * 5,
     },
     mutations: {
       retry: 1,
@@ -28,55 +28,41 @@ const queryClient = new QueryClient({
 const App = () => {
   const [hasValidLicense, setHasValidLicense] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    console.log("🚀 Démarrage app...");
+    // VÉRIFICATION INSTANTANÉE - ZERO latence
+    console.log("🚀 NothingAI - Démarrage instantané");
 
-    // FORCE STOP LOADING après 1 seconde MAXIMUM
-    const forceStop = setTimeout(() => {
-      console.log("⚠️ FORCE STOP LOADING - Redirection vers activation");
-      setIsLoading(false);
-      setHasValidLicense(false);
-    }, 1000);
-
-    // Vérification ultra-rapide
-    const quickCheck = () => {
+    const checkLicense = () => {
       try {
-        const localLicense = localStorage.getItem(
-          "nothingai_user_license_firebase",
-        );
-        console.log("📋 License locale:", !!localLicense);
+        // Import du manager instantané
+        const {
+          instantLicenseManager,
+        } = require("@/lib/instant-license-manager");
 
-        if (localLicense) {
-          setHasValidLicense(true);
-          console.log("✅ License trouvée");
+        // Vérification synchrone instantanée
+        const hasLicense = instantLicenseManager.hasValidLicense();
+        console.log("📋 License valide:", hasLicense);
+
+        setHasValidLicense(hasLicense);
+
+        if (hasLicense) {
+          console.log("✅ Accès autorisé - Application chargée");
         } else {
-          setHasValidLicense(false);
-          console.log("❌ Pas de license");
+          console.log("❌ Aucune license - Page d'activation");
         }
       } catch (error) {
-        console.error("⚠️ Erreur check:", error);
+        console.error("⚠️ Erreur vérification:", error);
         setHasValidLicense(false);
       }
-
-      // Arrêter le loading
-      setIsLoading(false);
-      clearTimeout(forceStop);
-      console.log("✅ Loading arrêté");
     };
 
-    // Vérification après 500ms
-    setTimeout(quickCheck, 500);
-
-    // Cleanup
-    return () => {
-      clearTimeout(forceStop);
-    };
+    // Exécution immédiate - pas de timeout
+    checkLicense();
   }, []);
 
   useEffect(() => {
-    // Gestionnaire pour Ctrl+F1 (Admin Panel)
+    // Gestionnaire Ctrl+F1 pour panel admin
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey && event.key === "F1") {
         event.preventDefault();
@@ -88,26 +74,6 @@ const App = () => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
-
-  console.log(
-    "🔄 App render - Loading:",
-    isLoading,
-    "HasLicense:",
-    hasValidLicense,
-  );
-
-  // Écran de chargement très court
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-center text-white">
-          <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-lg">Chargement de NothingAI...</p>
-          <p className="text-sm text-white/70 mt-2">Vérification rapide</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -127,21 +93,21 @@ const App = () => {
             />
 
             {!hasValidLicense ? (
-              // PAS DE LICENSE → PAGE D'ACTIVATION
+              // PAS DE LICENSE → ACTIVATION INSTANTANÉE
               <>
-                <FirebaseLicenseGate
+                <InstantLicenseGate
                   onLicenseValid={() => {
-                    console.log("🎉 License validée !");
+                    console.log("🎉 License activée instantanément !");
                     setHasValidLicense(true);
                   }}
                 />
-                <FirebaseAdminPanel
+                <InstantAdminPanel
                   open={showAdminPanel}
                   onClose={() => setShowAdminPanel(false)}
                 />
               </>
             ) : (
-              // LICENSE VALIDE → APPLICATION
+              // LICENSE VALIDE → APPLICATION COMPLÈTE
               <BrowserRouter>
                 <Routes>
                   <Route path="/" element={<Index />} />
@@ -149,7 +115,7 @@ const App = () => {
                   <Route path="/images" element={<GeneratedImages />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
-                <FirebaseAdminPanel
+                <InstantAdminPanel
                   open={showAdminPanel}
                   onClose={() => setShowAdminPanel(false)}
                 />
