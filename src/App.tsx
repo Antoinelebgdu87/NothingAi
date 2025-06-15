@@ -9,9 +9,9 @@ import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import GeneratedImages from "./pages/GeneratedImages";
 import NotFound from "./pages/NotFound";
-import LicenseGate from "./components/ui/license-gate";
+import FirebaseLicenseGate from "./components/ui/firebase-license-gate";
 import AdminPanel from "./components/ui/admin-panel";
-import { licenseManager } from "./lib/license-manager";
+import { firebaseLicenseManager } from "./lib/firebase-license-manager";
 import { securityManager } from "./lib/security";
 
 const queryClient = new QueryClient({
@@ -36,15 +36,21 @@ const App = () => {
     // Initialiser la sécurité
     securityManager.enable();
 
-    // Vérifier la license existante
-    const checkLicense = () => {
-      const hasLicense = licenseManager.hasValidLicense();
-      setHasValidLicense(hasLicense);
-      setIsLoading(false);
+    // Vérifier la license existante avec Firebase
+    const checkLicense = async () => {
+      try {
+        const hasLicense = await firebaseLicenseManager.hasValidLicense();
+        setHasValidLicense(hasLicense);
+      } catch (error) {
+        console.error("Erreur lors de la vérification de la license:", error);
+        setHasValidLicense(false);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    // Délai pour l'effet de chargement
-    setTimeout(checkLicense, 1000);
+    // Délai pour l'effet de chargement puis vérification
+    setTimeout(checkLicense, 1500);
 
     // Gestionnaire pour Ctrl+F1 (Admin Panel)
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -101,7 +107,7 @@ const App = () => {
 
           {!hasValidLicense ? (
             <>
-              <LicenseGate onLicenseValid={handleLicenseValid} />
+              <FirebaseLicenseGate onLicenseValid={handleLicenseValid} />
               <AdminPanel
                 open={showAdminPanel}
                 onClose={() => setShowAdminPanel(false)}
