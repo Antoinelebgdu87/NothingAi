@@ -55,8 +55,6 @@ const SimpleLicenseGate = ({ onLicenseValid }: SimpleLicenseGateProps) => {
     }
   };
 
-  const testLicenses = simpleLicenseManager.getAllLicenses().slice(0, 3);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
       {/* Arrière-plan animé */}
@@ -138,18 +136,15 @@ const SimpleLicenseGate = ({ onLicenseValid }: SimpleLicenseGateProps) => {
             </Button>
           </form>
 
-
-
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground">
-                Système local - Aucune connexion internet requise
-                <br />
-                <kbd className="px-2 py-1 bg-muted rounded text-xs">
-                  Ctrl + F1
-                </kbd>{" "}
-                pour le panel admin
-              </p>
-            </div>
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">
+              Système local - Aucune connexion internet requise
+              <br />
+              <kbd className="px-2 py-1 bg-muted rounded text-xs">
+                Ctrl + F1
+              </kbd>{" "}
+              pour le panel admin
+            </p>
           </div>
         </CardContent>
       </Card>
