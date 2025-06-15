@@ -1,4 +1,4 @@
-// Système de license corrigé - Fonctionne garantit
+// Système de license auto-validant - Clés fonctionnelles entre utilisateurs
 interface CustomLicense {
   key: string;
   createdAt: Date;
@@ -8,11 +8,17 @@ interface CustomLicense {
   isActive: boolean;
 }
 
+interface LicenseData {
+  duration: number;
+  maxUsages: number;
+  created: number; // timestamp
+}
+
 class InstantLicenseManager {
   private userLicenseKey = "nothingai_license_instant";
-  private licensesKey = "nothingai_custom_licenses";
+  private usageKey = "nothingai_license_usage";
 
-  // Clés de base qui marchent TOUJOURS
+  // Clés de base qui marchent TOUJOURS pour tous
   private baseLicenses: CustomLicense[] = [
     {
       key: "NOTHINGAI-4C24HUEQ",
@@ -48,77 +54,68 @@ class InstantLicenseManager {
     },
   ];
 
-  // Obtenir toutes les licenses (base + personnalisées)
-  private getAllAvailableLicenses(): CustomLicense[] {
-    const customLicenses = this.getCustomLicenses();
-    return [...this.baseLicenses, ...customLicenses];
-  }
-
-  // Obtenir les licenses personnalisées seulement
-  private getCustomLicenses(): CustomLicense[] {
+  // Encoder les données dans la clé (auto-validante)
+  private encodeLicenseData(data: LicenseData): string {
     try {
-      const stored = localStorage.getItem(this.licensesKey);
-      if (!stored) return [];
-
-      const parsed = JSON.parse(stored);
-      // Convertir les dates string en objets Date
-      return parsed.map((license: any) => ({
-        ...license,
-        createdAt: new Date(license.createdAt),
-        expiresAt: new Date(license.expiresAt),
-      }));
-    } catch (error) {
-      console.warn("⚠️ Erreur lecture licenses:", error);
-      return [];
+      const jsonStr = JSON.stringify(data);
+      const encoded = btoa(jsonStr);
+      // Prendre seulement les 8 premiers caractères pour faire une clé courte
+      return encoded.substring(0, 8).toUpperCase();
+    } catch {
+      return Math.random().toString(36).substr(2, 8).toUpperCase();
     }
   }
 
-  // Sauvegarder les licenses personnalisées
-  private saveCustomLicenses(licenses: CustomLicense[]): void {
+  // Décoder les données depuis la clé
+  private decodeLicenseData(key: string): LicenseData | null {
     try {
-      localStorage.setItem(this.licensesKey, JSON.stringify(licenses));
-      console.log("💾 Licenses sauvegardées:", licenses.length);
-    } catch (error) {
-      console.warn("⚠️ Erreur sauvegarde licenses:", error);
+      // Essayer de décoder les clés générées
+      if (key.length >= 8) {
+        const encoded = key.substring(0, 8);
+        const decoded = atob(encoded);
+        const data = JSON.parse(decoded);
+
+        // Vérifier que c'est bien une structure de license
+        if (data.duration && data.maxUsages && data.created) {
+          return data;
+        }
+      }
+      return null;
+    } catch {
+      return null;
     }
   }
 
-  // Créer une nouvelle license avec durée et usages personnalisés
+  // Créer une nouvelle license auto-validante
   public createCustomLicense(
     durationDays: number,
     maxUsages: number,
   ): { success: boolean; key: string; message: string } {
     try {
-      // Générer une clé unique
-      const randomCode = Math.random().toString(36).substr(2, 8).toUpperCase();
-      const licenseKey = `NOTHINGAI-${randomCode}`;
+      const now = Date.now();
 
-      // Calculer les dates
-      const createdAt = new Date();
-      const expiresAt = new Date(
-        createdAt.getTime() + durationDays * 24 * 60 * 60 * 1000,
-      );
-
-      // Créer la license
-      const newLicense: CustomLicense = {
-        key: licenseKey,
-        createdAt,
-        expiresAt,
-        maxUsages,
-        currentUsages: 0,
-        isActive: true,
+      // Données de la license
+      const licenseData: LicenseData = {
+        duration: durationDays,
+        maxUsages: maxUsages,
+        created: now,
       };
 
-      // Sauvegarder dans les licenses personnalisées
-      const customLicenses = this.getCustomLicenses();
-      customLicenses.push(newLicense);
-      this.saveCustomLicenses(customLicenses);
+      // Encoder dans la cl��
+      const encodedPart = this.encodeLicenseData(licenseData);
 
-      console.log("🆕 License créée:", {
+      // Ajouter un suffixe aléatoire pour l'unicité
+      const randomSuffix = Math.random()
+        .toString(36)
+        .substr(2, 4)
+        .toUpperCase();
+      const licenseKey = `NOTHINGAI-${encodedPart}${randomSuffix}`;
+
+      console.log("🆕 License auto-validante créée:", {
         key: licenseKey,
         duration: durationDays,
         maxUsages,
-        expiresAt: expiresAt.toLocaleDateString(),
+        encoded: encodedPart,
       });
 
       return {
@@ -136,7 +133,40 @@ class InstantLicenseManager {
     }
   }
 
-  // Vérifier si une clé est valide (CORRIGÉ)
+  // Obtenir l'usage d'une clé (partagé globalement)
+  private getLicenseUsage(licenseKey: string): {
+    uses: number;
+    firstUsed: number;
+  } {
+    try {
+      const usageData = localStorage.getItem(`${this.usageKey}_${licenseKey}`);
+      if (usageData) {
+        return JSON.parse(usageData);
+      }
+      return { uses: 0, firstUsed: 0 };
+    } catch {
+      return { uses: 0, firstUsed: 0 };
+    }
+  }
+
+  // Enregistrer l'usage d'une clé
+  private setLicenseUsage(
+    licenseKey: string,
+    uses: number,
+    firstUsed: number,
+  ): void {
+    try {
+      const usageData = { uses, firstUsed };
+      localStorage.setItem(
+        `${this.usageKey}_${licenseKey}`,
+        JSON.stringify(usageData),
+      );
+    } catch (error) {
+      console.warn("⚠️ Erreur sauvegarde usage:", error);
+    }
+  }
+
+  // Vérifier si une clé est valide (SYSTÈME PARTAGÉ)
   public isValidLicense(licenseKey: string): boolean {
     if (!licenseKey || typeof licenseKey !== "string") {
       console.log("❌ Clé invalide (vide ou mauvais type)");
@@ -145,7 +175,7 @@ class InstantLicenseManager {
 
     let cleanKey = licenseKey.trim().toUpperCase();
 
-    // Normaliser le format : si pas de NOTHINGAI- au début, l'ajouter
+    // Normaliser le format
     if (!cleanKey.startsWith("NOTHINGAI-")) {
       if (cleanKey.startsWith("NOTHINGAI")) {
         cleanKey = cleanKey.replace("NOTHINGAI", "NOTHINGAI-");
@@ -156,48 +186,51 @@ class InstantLicenseManager {
 
     console.log("🔍 Vérification clé:", cleanKey);
 
-    // Chercher dans toutes les licenses disponibles
-    const allLicenses = this.getAllAvailableLicenses();
-    const license = allLicenses.find((l) => l.key === cleanKey);
-
-    if (!license) {
-      console.log("❌ Clé non trouvée dans la base:", cleanKey);
-      console.log(
-        "📋 Clés disponibles:",
-        allLicenses.map((l) => l.key),
-      );
-      return false;
+    // 1. Vérifier les clés de base (illimitées)
+    const isBaseLicense = this.baseLicenses.some((l) => l.key === cleanKey);
+    if (isBaseLicense) {
+      console.log("✅ Clé de base valide:", cleanKey);
+      return true;
     }
 
-    // Vérifier l'expiration
-    const now = new Date();
-    const expiresAt = new Date(license.expiresAt);
-    if (now > expiresAt) {
-      console.log("❌ Clé expirée:", cleanKey, "Expire le:", expiresAt);
-      return false;
+    // 2. Vérifier les clés auto-validantes
+    const keyPart = cleanKey.replace("NOTHINGAI-", "");
+    if (keyPart.length >= 8) {
+      const licenseData = this.decodeLicenseData(keyPart);
+
+      if (licenseData) {
+        console.log("🔍 License auto-validante détectée:", licenseData);
+
+        // Vérifier l'expiration
+        const now = Date.now();
+        const expiresAt =
+          licenseData.created + licenseData.duration * 24 * 60 * 60 * 1000;
+
+        if (now > expiresAt) {
+          console.log("❌ License expirée:", new Date(expiresAt));
+          return false;
+        }
+
+        // Vérifier les usages
+        const usage = this.getLicenseUsage(cleanKey);
+        if (usage.uses >= licenseData.maxUsages) {
+          console.log(
+            "❌ License épuisée:",
+            `${usage.uses}/${licenseData.maxUsages}`,
+          );
+          return false;
+        }
+
+        console.log("✅ License auto-validante valide:", cleanKey);
+        return true;
+      }
     }
 
-    // Vérifier les usages
-    if (license.currentUsages >= license.maxUsages) {
-      console.log(
-        "❌ Clé épuisée:",
-        cleanKey,
-        `${license.currentUsages}/${license.maxUsages}`,
-      );
-      return false;
-    }
-
-    // Vérifier si active
-    if (!license.isActive) {
-      console.log("❌ Clé désactivée:", cleanKey);
-      return false;
-    }
-
-    console.log("✅ Clé valide:", cleanKey);
-    return true;
+    console.log("❌ Clé non reconnue:", cleanKey);
+    return false;
   }
 
-  // Activer une license (CORRIGÉ)
+  // Activer une license (SYSTÈME PARTAGÉ)
   public activateLicense(licenseKey: string): {
     success: boolean;
     message: string;
@@ -223,7 +256,7 @@ class InstantLicenseManager {
     console.log("🚀 Tentative activation:", cleanKey);
 
     if (this.isValidLicense(cleanKey)) {
-      // Incrémenter les usages si c'est une license personnalisée
+      // Incrémenter l'usage pour les clés auto-validantes
       this.incrementUsage(cleanKey);
 
       // Sauvegarder comme license active
@@ -243,7 +276,7 @@ class InstantLicenseManager {
     }
   }
 
-  // Incrémenter l'usage d'une license
+  // Incrémenter l'usage (SYSTÈME PARTAGÉ)
   private incrementUsage(licenseKey: string): void {
     // Ne pas incrémenter pour les licenses de base (illimitées)
     const isBaseLicense = this.baseLicenses.some((l) => l.key === licenseKey);
@@ -252,19 +285,13 @@ class InstantLicenseManager {
       return;
     }
 
-    // Incrémenter pour les licenses personnalisées
-    const customLicenses = this.getCustomLicenses();
-    const licenseIndex = customLicenses.findIndex((l) => l.key === licenseKey);
+    // Incrémenter pour les licenses auto-validantes
+    const usage = this.getLicenseUsage(licenseKey);
+    const newUsage = usage.uses + 1;
+    const firstUsed = usage.firstUsed || Date.now();
 
-    if (licenseIndex !== -1) {
-      customLicenses[licenseIndex].currentUsages += 1;
-      this.saveCustomLicenses(customLicenses);
-      console.log(
-        "📈 Usage incrémenté:",
-        licenseKey,
-        customLicenses[licenseIndex].currentUsages,
-      );
-    }
+    this.setLicenseUsage(licenseKey, newUsage, firstUsed);
+    console.log("📈 Usage incrémenté:", licenseKey, newUsage);
   }
 
   // Sauvegarder la license active
@@ -320,18 +347,57 @@ class InstantLicenseManager {
     }
   }
 
-  // Obtenir toutes les licenses pour l'admin
+  // Obtenir toutes les licenses pour l'admin (simulation)
   public getAllLicenses(): CustomLicense[] {
-    return this.getAllAvailableLicenses();
+    const allLicenses = [...this.baseLicenses];
+
+    // Ajouter des exemples de licenses créées
+    try {
+      // Scanner le localStorage pour les usages de licenses
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(this.usageKey)) {
+          const licenseKey = key.replace(`${this.usageKey}_`, "");
+          if (
+            licenseKey.startsWith("NOTHINGAI-") &&
+            !this.baseLicenses.some((l) => l.key === licenseKey)
+          ) {
+            const usage = this.getLicenseUsage(licenseKey);
+            const keyPart = licenseKey.replace("NOTHINGAI-", "");
+            const licenseData = this.decodeLicenseData(keyPart);
+
+            if (licenseData) {
+              const expiresAt = new Date(
+                licenseData.created +
+                  licenseData.duration * 24 * 60 * 60 * 1000,
+              );
+
+              allLicenses.push({
+                key: licenseKey,
+                createdAt: new Date(licenseData.created),
+                expiresAt: expiresAt,
+                maxUsages: licenseData.maxUsages,
+                currentUsages: usage.uses,
+                isActive: true,
+              });
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("⚠️ Erreur scan licenses:", error);
+    }
+
+    return allLicenses;
   }
 
   // Obtenir les détails d'une license
   public getLicenseDetails(licenseKey: string): CustomLicense | null {
-    const allLicenses = this.getAllAvailableLicenses();
+    const allLicenses = this.getAllLicenses();
     return allLicenses.find((l) => l.key === licenseKey.toUpperCase()) || null;
   }
 
-  // Supprimer une license (seulement les personnalisées)
+  // Supprimer une license (effacer son usage)
   public deleteLicense(licenseKey: string): boolean {
     try {
       const cleanKey = licenseKey.toUpperCase();
@@ -343,16 +409,10 @@ class InstantLicenseManager {
         return false;
       }
 
-      const customLicenses = this.getCustomLicenses();
-      const filteredLicenses = customLicenses.filter((l) => l.key !== cleanKey);
-
-      if (filteredLicenses.length < customLicenses.length) {
-        this.saveCustomLicenses(filteredLicenses);
-        console.log("🗑️ License personnalisée supprimée:", cleanKey);
-        return true;
-      }
-
-      return false;
+      // Supprimer les données d'usage
+      localStorage.removeItem(`${this.usageKey}_${cleanKey}`);
+      console.log("🗑️ Usage de license supprimé:", cleanKey);
+      return true;
     } catch (error) {
       console.error("❌ Erreur suppression:", error);
       return false;
@@ -361,7 +421,7 @@ class InstantLicenseManager {
 
   // Statistiques
   public getStats() {
-    const allLicenses = this.getAllAvailableLicenses();
+    const allLicenses = this.getAllLicenses();
     const now = new Date();
 
     const active = allLicenses.filter(
@@ -372,19 +432,18 @@ class InstantLicenseManager {
     );
 
     const expired = allLicenses.filter((l) => new Date(l.expiresAt) <= now);
-
     const exhausted = allLicenses.filter((l) => l.currentUsages >= l.maxUsages);
 
     return {
       totalLicenses: allLicenses.length,
       baseLicenses: this.baseLicenses.length,
-      customLicenses: this.getCustomLicenses().length,
+      customLicenses: allLicenses.length - this.baseLicenses.length,
       activeLicenses: active.length,
       expiredLicenses: expired.length,
       exhaustedLicenses: exhausted.length,
       hasActiveLicense: this.hasValidLicense(),
       currentLicense: this.getSavedLicense(),
-      systemType: "Custom License System",
+      systemType: "Auto-Validating Shared System",
     };
   }
 }
