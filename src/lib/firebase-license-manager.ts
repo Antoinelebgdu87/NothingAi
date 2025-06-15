@@ -453,6 +453,204 @@ class FirebaseLicenseManager {
     }
   }
 
+  // ✨ NOUVELLES FONCTIONNALITÉS AVANCÉES ✨
+
+  // Créer une license avec options avancées
+  public async createLicenseAdvanced(options: {
+    type: "trial" | "standard" | "premium" | "enterprise";
+    duration: number; // jours
+    maxUsages: number;
+    features?: string[];
+  }): Promise<{
+    success: boolean;
+    license?: FirebaseLicense;
+    message: string;
+  }> {
+    try {
+      const randomCode = Math.random().toString(36).substr(2, 8).toUpperCase();
+      const licenseKey = `NothingAi-${randomCode}`;
+
+      const now = new Date();
+      const expiresAt = new Date(
+        now.getTime() + options.duration * 24 * 60 * 60 * 1000,
+      );
+
+      const newLicense: Omit<FirebaseLicense, "id"> = {
+        key: licenseKey,
+        usages: 0,
+        maxUsages: options.maxUsages,
+        createdAt: Timestamp.fromDate(now),
+        expiresAt: Timestamp.fromDate(expiresAt),
+        isActive: true,
+        usedBy: [],
+        type: options.type,
+        metadata: {
+          duration: options.duration,
+          features: options.features || ["chat", "images"],
+        },
+      };
+
+      const docRef = await addDoc(collection(db, "licenses"), newLicense);
+      const fullLicense = { id: docRef.id, ...newLicense } as FirebaseLicense;
+
+      console.log("🆕 License avancée créée:", {
+        key: licenseKey,
+        type: options.type,
+        duration: options.duration,
+        maxUsages: options.maxUsages,
+      });
+
+      return {
+        success: true,
+        license: fullLicense,
+        message: `License ${options.type} créée (${options.duration} jours, ${options.maxUsages} usages)`,
+      };
+    } catch (error) {
+      console.error("❌ Erreur création license avancée:", error);
+      return {
+        success: false,
+        message: "Erreur lors de la création de la license",
+      };
+    }
+  }
+
+  // Modifier une license existante
+  public async modifyLicense(
+    licenseId: string,
+    modifications: {
+      duration?: number; // nouveaux jours à partir de maintenant
+      maxUsages?: number;
+      type?: "trial" | "standard" | "premium" | "enterprise";
+      resetUsages?: boolean;
+      extend?: boolean; // étendre au lieu de redéfinir
+    },
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const licenseDoc = await getDoc(doc(db, "licenses", licenseId));
+
+      if (!licenseDoc.exists()) {
+        return { success: false, message: "License non trouvée" };
+      }
+
+      const currentLicense = {
+        id: licenseDoc.id,
+        ...licenseDoc.data(),
+      } as FirebaseLicense;
+      const updates: any = {};
+
+      // Modifier la durée
+      if (modifications.duration) {
+        const now = new Date();
+        let newExpiresAt: Date;
+
+        if (modifications.extend) {
+          // Étendre à partir de la date d'expiration actuelle
+          const currentExpires = currentLicense.expiresAt.toDate();
+          newExpiresAt = new Date(
+            currentExpires.getTime() +
+              modifications.duration * 24 * 60 * 60 * 1000,
+          );
+        } else {
+          // Redéfinir à partir de maintenant
+          newExpiresAt = new Date(
+            now.getTime() + modifications.duration * 24 * 60 * 60 * 1000,
+          );
+        }
+
+        updates.expiresAt = Timestamp.fromDate(newExpiresAt);
+
+        // Mettre à jour les métadonnées
+        if (currentLicense.metadata) {
+          updates.metadata = {
+            ...currentLicense.metadata,
+            duration: modifications.extend
+              ? (currentLicense.metadata.duration || 0) + modifications.duration
+              : modifications.duration,
+          };
+        }
+      }
+
+      // Modifier les usages max
+      if (modifications.maxUsages !== undefined) {
+        updates.maxUsages = modifications.maxUsages;
+        // Réactiver si nécessaire
+        if (modifications.maxUsages > currentLicense.usages) {
+          updates.isActive = true;
+        }
+      }
+
+      // Modifier le type
+      if (modifications.type) {
+        updates.type = modifications.type;
+      }
+
+      // Réinitialiser les usages
+      if (modifications.resetUsages) {
+        updates.usages = 0;
+        updates.usedBy = [];
+        updates.isActive = true;
+      }
+
+      await updateDoc(doc(db, "licenses", licenseId), updates);
+
+      console.log("🔧 License modifiée:", {
+        id: licenseId,
+        modifications,
+      });
+
+      return {
+        success: true,
+        message: "License modifiée avec succès",
+      };
+    } catch (error) {
+      console.error("❌ Erreur modification license:", error);
+      return {
+        success: false,
+        message: "Erreur lors de la modification de la license",
+      };
+    }
+  }
+
+  // Supprimer une license
+  public async deleteLicense(
+    licenseId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      await deleteDoc(doc(db, "licenses", licenseId));
+
+      console.log("🗑️ License supprimée:", licenseId);
+
+      return {
+        success: true,
+        message: "License supprimée avec succès",
+      };
+    } catch (error) {
+      console.error("❌ Erreur suppression license:", error);
+      return {
+        success: false,
+        message: "Erreur lors de la suppression de la license",
+      };
+    }
+  }
+
+  // Obtenir les détails d'une license par ID
+  public async getLicenseById(
+    licenseId: string,
+  ): Promise<FirebaseLicense | null> {
+    try {
+      const licenseDoc = await getDoc(doc(db, "licenses", licenseId));
+
+      if (!licenseDoc.exists()) {
+        return null;
+      }
+
+      return { id: licenseDoc.id, ...licenseDoc.data() } as FirebaseLicense;
+    } catch (error) {
+      console.error("❌ Erreur récupération license:", error);
+      return null;
+    }
+  }
+
   // Test de connectivité Firebase
   public async testConnection(): Promise<boolean> {
     try {
