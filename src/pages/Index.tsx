@@ -569,6 +569,18 @@ const Index = () => {
                     <Paperclip className="w-4 h-4" />
                   </Button>
 
+                  {/* Image Generation Button */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowImageGeneration(true)}
+                    className="mb-1 focus-ring"
+                    title="Générer une image avec IA"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                  </Button>
+
                   {/* Text Input */}
                   <div className="relative flex-1">
                     <Input
@@ -649,6 +661,15 @@ const Index = () => {
         onDrop={imageAnalysis.handleDrop}
         onDragOver={imageAnalysis.handleDragOver}
         onDragLeave={imageAnalysis.handleDragLeave}
+      />
+
+      {/* Image Generation Modal */}
+      <ImageGenerationModal
+        open={showImageGeneration}
+        onOpenChange={setShowImageGeneration}
+        initialPrompt={
+          imageGeneration.detectImageGenerationIntent(input) ? input : ""
+        }
       />
     </div>
   );
