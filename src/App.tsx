@@ -31,79 +31,62 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Version ultra-simple qui marche à coup sûr
-    console.log("🚀 Démarrage de l'application...");
+    // Version directe et simple - pas de complications
+    console.log("🚀 Démarrage simple de l'application...");
 
-    const initApp = () => {
+    const checkLicense = () => {
       try {
-        console.log("🔍 Vérification des licenses...");
+        // Vérification locale simple et rapide
+        const localLicense = localStorage.getItem(
+          "nothingai_user_license_firebase",
+        );
+        console.log("📋 License locale:", localLicense ? "Trouvée" : "Aucune");
 
-        // Import dynamique pour éviter les erreurs de module
-        import("./lib/firebase-license-manager")
-          .then((module) => {
-            console.log("📦 Module Firebase license manager chargé");
-
-            try {
-              const hasLicense =
-                module.firebaseLicenseManager.hasValidLicense();
-              console.log("📋 License trouvée:", hasLicense);
-              setHasValidLicense(hasLicense);
-            } catch (error) {
-              console.error("❌ Erreur vérification license:", error);
-              setHasValidLicense(false);
-            }
-
-            setIsLoading(false);
-            console.log("✅ Application initialisée");
-          })
-          .catch((error) => {
-            console.error("❌ Erreur import module:", error);
-            setHasValidLicense(false);
-            setIsLoading(false);
-          });
+        // Si license trouvée, on active l'app
+        if (localLicense && localLicense.trim()) {
+          setHasValidLicense(true);
+          console.log("✅ License valide trouvée");
+        } else {
+          setHasValidLicense(false);
+          console.log("❌ Aucune license - Redirection vers activation");
+        }
       } catch (error) {
-        console.error("❌ Erreur initialisation:", error);
+        console.error("⚠️ Erreur vérification license:", error);
         setHasValidLicense(false);
-        setIsLoading(false);
       }
-    };
 
-    // Délai court puis initialisation
-    setTimeout(initApp, 200);
-
-    // Timeout de sécurité absolu
-    setTimeout(() => {
-      console.log("⚠️ Timeout de sécurité - Arrêt forcé du loading");
+      // Arrêter le loading dans tous les cas
       setIsLoading(false);
-    }, 2000);
-
-    // Gestionnaire pour Ctrl+F1 (Admin Panel)
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === "F1") {
-        e.preventDefault();
-        setShowAdminPanel(true);
-      }
+      console.log("✅ Application initialisée (simple)");
     };
 
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+    // Petit délai pour l'effet visuel puis vérification directe
+    setTimeout(checkLicense, 300);
   }, []);
 
-  const handleLicenseValid = () => {
-    setHasValidLicense(true);
-  };
+  useEffect(() => {
+    // Gestionnaire pour Ctrl+F1 (Admin Panel)
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key === "F1") {
+        event.preventDefault();
+        setShowAdminPanel(true);
+        console.log("🔧 Panel admin ouvert");
+      }
+    };
 
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Écran de chargement simple
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto" />
-          <p className="text-white">Chargement de NothingAI...</p>
-          <p className="text-white/60 text-sm">
-            Initialisation du système de license
+        <div className="text-center text-white">
+          <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-lg">Chargement de NothingAI...</p>
+          <p className="text-sm text-white/70 mt-2">
+            Vérification des licenses
           </p>
         </div>
       </div>
@@ -111,55 +94,53 @@ const App = () => {
   }
 
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="dark"
-      enableSystem={false}
-      disableTransitionOnChange
-    >
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
         <TooltipProvider>
-          <Toaster />
-          <Sonner
-            position="bottom-right"
-            theme="dark"
-            toastOptions={{
-              style: {
-                background: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                color: "hsl(var(--foreground))",
-              },
-            }}
-          />
+          <div className="min-h-screen bg-background font-sans antialiased">
+            <Toaster />
+            <Sonner
+              position="bottom-right"
+              toastOptions={{
+                style: {
+                  background: "hsl(var(--background))",
+                  border: "1px solid hsl(var(--border))",
+                  color: "hsl(var(--foreground))",
+                },
+              }}
+            />
 
-          {!hasValidLicense ? (
-            <>
-              <FirebaseLicenseGate
-                onLicenseValid={() => setHasValidLicense(true)}
-              />
-              {/* Panel Admin même quand pas de license */}
-              <FirebaseAdminPanel
-                open={showAdminPanel}
-                onClose={() => setShowAdminPanel(false)}
-              />
-            </>
-          ) : (
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/images" element={<GeneratedImages />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-              <FirebaseAdminPanel
-                open={showAdminPanel}
-                onClose={() => setShowAdminPanel(false)}
-              />
-            </BrowserRouter>
-          )}
+            {!hasValidLicense ? (
+              // Pas de license → Page d'activation directe (comme au début)
+              <>
+                <FirebaseLicenseGate
+                  onLicenseValid={() => setHasValidLicense(true)}
+                />
+                {/* Panel Admin accessible même sans license */}
+                <FirebaseAdminPanel
+                  open={showAdminPanel}
+                  onClose={() => setShowAdminPanel(false)}
+                />
+              </>
+            ) : (
+              // License valide → Application complète
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/images" element={<GeneratedImages />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                <FirebaseAdminPanel
+                  open={showAdminPanel}
+                  onClose={() => setShowAdminPanel(false)}
+                />
+              </BrowserRouter>
+            )}
+          </div>
         </TooltipProvider>
-      </QueryClientProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 };
 
