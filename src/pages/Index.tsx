@@ -177,7 +177,7 @@ const Index = () => {
         {/* Sidebar Header */}
         <div className="p-4 border-b border-border/30">
           <div className="flex items-center justify-between mb-4">
-            <div className="font-bold text-xl">NothingAI</div>
+            <NothingAIWordmark className="h-8" />
             <Button
               variant="outline"
               size="sm"
