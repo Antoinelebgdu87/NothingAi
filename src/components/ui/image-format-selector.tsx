@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
-  AspectRatio,
+  Ratio,
   Monitor,
   Smartphone,
   Square,
@@ -290,7 +290,7 @@ const ImageFormatSelector = ({
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <AspectRatio className="w-4 h-4" />
+            <Ratio className="w-4 h-4" />
             Format et Résolution
           </CardTitle>
           <CardDescription className="text-xs">
