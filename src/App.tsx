@@ -12,7 +12,6 @@ import NotFound from "./pages/NotFound";
 import SimpleLicenseGate from "./components/ui/simple-license-gate";
 import SimpleAdminPanel from "./components/ui/simple-admin-panel";
 import { simpleLicenseManager } from "./lib/simple-license-manager";
-import { securityManager } from "./lib/security";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,41 +32,24 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initialiser la sécurité
-    securityManager.enable();
+    // Vérification simple et rapide de la license
+    const checkLicense = () => {
+      console.log("🔍 Vérification simple de la license...");
 
-    // Vérifier la license existante avec le gestionnaire hybride
-    const checkLicense = async () => {
       try {
-        console.log("🔍 Vérification de la license existante...");
-
-        // Test de connexion (Firebase ou fallback)
-        const isConnected = await hybridLicenseManager.testConnection();
-        const status = hybridLicenseManager.getStatus();
-        console.log(
-          "🌐 Système de license:",
-          status.mode,
-          "- Connecté:",
-          isConnected,
-        );
-
-        const hasLicense = await hybridLicenseManager.hasValidLicense();
-        console.log("📋 License existante trouvée:", hasLicense);
+        const hasLicense = simpleLicenseManager.hasValidLicense();
+        console.log("📋 License trouvée:", hasLicense);
         setHasValidLicense(hasLicense);
       } catch (error) {
-        console.error(
-          "❌ Erreur lors de la vérification de la license:",
-          error,
-        );
-        console.log("🔄 Démarrage en mode license requise");
+        console.error("❌ Erreur vérification:", error);
         setHasValidLicense(false);
       } finally {
         setIsLoading(false);
       }
     };
 
-    // Délai pour l'effet de chargement puis vérification
-    setTimeout(checkLicense, 1000);
+    // Vérification rapide après 500ms
+    setTimeout(checkLicense, 500);
 
     // Gestionnaire pour Ctrl+F1 (Admin Panel)
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -81,7 +63,6 @@ const App = () => {
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      // securityManager.disable(); // Désactivé pour simplicité
     };
   }, []);
 
