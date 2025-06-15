@@ -109,6 +109,20 @@ const SimpleAdminPanel = ({ open, onClose }: SimpleAdminPanelProps) => {
     toast.success("Clé copiée dans le presse-papiers !");
   };
 
+  const deleteLicense = (licenseKey: string) => {
+    try {
+      const result = simpleLicenseManager.deleteLicense(licenseKey);
+      if (result.success) {
+        loadData(); // Recharger les données
+        toast.success(`License ${licenseKey} supprimée !`);
+      } else {
+        toast.error(result.message || "Erreur lors de la suppression");
+      }
+    } catch (error) {
+      toast.error("Erreur lors de la suppression de la license");
+    }
+  };
+
   const exportLicenses = () => {
     const data = JSON.stringify(
       { licenses, stats, exportDate: new Date() },
