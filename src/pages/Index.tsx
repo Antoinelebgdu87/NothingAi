@@ -51,6 +51,8 @@ import { toast } from "sonner";
 import { useImageGeneration } from "@/hooks/use-image-generation";
 import { useChat } from "@/hooks/use-chat";
 import { useMobile } from "@/hooks/use-mobile";
+import { LogoGridBackground } from "@/components/ui/nothingai-logo";
+import ChatMessageComponent from "@/components/ui/chat-message";
 import {
   NothingAIWordmark,
   LogoGridBackground,
