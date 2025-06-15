@@ -39,10 +39,28 @@ const App = () => {
     // Vérifier la license existante avec Firebase
     const checkLicense = async () => {
       try {
+        console.log("🔍 Vérification de la license existante...");
+
+        // Test de connexion Firebase d'abord
+        const isConnected = await firebaseLicenseManager.testConnection();
+        console.log("🌐 Connexion Firebase:", isConnected);
+
+        if (!isConnected) {
+          console.warn("❌ Firebase non accessible, démarrage sans license");
+          setHasValidLicense(false);
+          setIsLoading(false);
+          return;
+        }
+
         const hasLicense = await firebaseLicenseManager.hasValidLicense();
+        console.log("📋 License existante trouvée:", hasLicense);
         setHasValidLicense(hasLicense);
       } catch (error) {
-        console.error("Erreur lors de la vérification de la license:", error);
+        console.error(
+          "❌ Erreur lors de la vérification de la license:",
+          error,
+        );
+        console.log("🔄 Démarrage en mode license requise");
         setHasValidLicense(false);
       } finally {
         setIsLoading(false);
@@ -50,7 +68,7 @@ const App = () => {
     };
 
     // Délai pour l'effet de chargement puis vérification
-    setTimeout(checkLicense, 1500);
+    setTimeout(checkLicense, 1000);
 
     // Gestionnaire pour Ctrl+F1 (Admin Panel)
     const handleKeyDown = (e: KeyboardEvent) => {
