@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,14 +15,13 @@ import {
   Key,
   Shield,
   Sparkles,
-  AlertCircle,
   CheckCircle,
   Zap,
   Wifi,
   WifiOff,
-  Database,
+  AlertCircle,
 } from "lucide-react";
-import { hybridLicenseManager } from "@/lib/hybrid-license-manager";
+import { firebaseLicenseManager } from "@/lib/firebase-license-manager";
 import { toast } from "sonner";
 
 interface FirebaseLicenseGateProps {
@@ -40,24 +38,21 @@ const FirebaseLicenseGate = ({ onLicenseValid }: FirebaseLicenseGateProps) => {
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const connected = await hybridLicenseManager.testConnection();
-        const status = hybridLicenseManager.getStatus();
+        console.log("🔌 Test connexion Firebase...");
+        const connected = await firebaseLicenseManager.testConnection();
         setIsConnected(connected);
 
-        console.log("🔌 Statut système de license:", status.mode);
-
-        if (!connected) {
-          toast.warning(
-            `Service de licenses en mode ${status.mode}. Fonctionnalités limitées.`,
-          );
+        if (connected) {
+          console.log("✅ Firebase connecté");
+          toast.success("Connexion Firebase établie");
         } else {
-          toast.success(`Connecté au système de licenses (${status.mode})`, {
-            duration: 2000,
-          });
+          console.log("❌ Firebase déconnecté");
+          toast.error("Impossible de se connecter à Firebase");
         }
       } catch (error) {
+        console.error("💥 Erreur test connexion:", error);
         setIsConnected(false);
-        toast.error("Erreur de connexion au service de licenses");
+        toast.error("Erreur de connexion Firebase");
       } finally {
         setIsCheckingConnection(false);
       }
@@ -75,45 +70,79 @@ const FirebaseLicenseGate = ({ onLicenseValid }: FirebaseLicenseGateProps) => {
     }
 
     if (!isConnected) {
-      toast.error(
-        "Service de licenses indisponible. Veuillez réessayer plus tard.",
-      );
+      toast.error("Pas de connexion Firebase - Impossible de valider");
       return;
     }
 
     setIsValidating(true);
 
     try {
-      const result = await hybridLicenseManager.useLicense(licenseKey.trim());
-      const status = hybridLicenseManager.getStatus();
+      console.log("🔍 Validation de la license:", licenseKey);
+
+      // Validation avec Firebase
+      const result = await firebaseLicenseManager.useLicense(licenseKey.trim());
 
       if (result.success) {
-        toast.success(
-          `License activée avec succès ! (${status.mode}) Bienvenue dans NothingAI ✨`,
-          { duration: 3000 },
-        );
+        console.log("✅ License validée avec succès");
+        toast.success("🎉 License activée avec succès !");
 
-        // Délai pour permettre à l'utilisateur de voir le message
+        // Redirection vers l'application
         setTimeout(() => {
           onLicenseValid();
-        }, 1500);
+        }, 1000);
       } else {
-        toast.error(result.message);
+        console.log("❌ License invalide:", result.message);
+        toast.error(result.message || "License invalide");
       }
     } catch (error) {
+      console.error("💥 Erreur validation:", error);
       toast.error("Erreur lors de la validation de la license");
     } finally {
       setIsValidating(false);
     }
   };
 
+  // Créer quelques licenses de test pour les admins
+  const createTestLicense = async () => {
+    if (!isConnected) {
+      toast.error("Pas de connexion Firebase");
+      return;
+    }
+
+    try {
+      const result = await firebaseLicenseManager.createLicenseAdvanced({
+        type: "standard",
+        duration: 30,
+        maxUsages: 100,
+        features: ["chat", "images"],
+      });
+
+      if (result.success && result.license) {
+        // Copier automatiquement
+        navigator.clipboard.writeText(result.license.key);
+        toast.success(`License créée: ${result.license.key} (copiée !)`);
+        setLicenseKey(result.license.key);
+      } else {
+        toast.error("Erreur lors de la création");
+      }
+    } catch (error) {
+      console.error("💥 Erreur création license:", error);
+      toast.error("Erreur lors de la création de la license");
+    }
+  };
+
   if (isCheckingConnection) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto" />
-          <p className="text-white">Connexion au service de licenses...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-card/95 backdrop-blur-sm">
+          <CardContent className="p-6 text-center">
+            <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-lg font-medium">Connexion à Firebase...</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Initialisation du système de licenses
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -134,27 +163,32 @@ const FirebaseLicenseGate = ({ onLicenseValid }: FirebaseLicenseGateProps) => {
           <div className="space-y-2">
             <CardTitle className="flex items-center justify-center gap-2 text-2xl">
               <Shield className="w-6 h-6 text-primary" />
-              NothingAI - Accès Protégé
+              NothingAI - Firebase
             </CardTitle>
             <CardDescription>
-              Une license valide est requise pour accéder à NothingAI
+              Entrez votre clé de license pour accéder à NothingAI
             </CardDescription>
           </div>
 
           {/* Status de connexion */}
-          <div className="flex items-center justify-center gap-2">
-            {isConnected ? (
-              <Badge className="bg-green-100 text-green-700 text-xs">
-                <Database className="w-3 h-3 mr-1" />
-                Service connecté
-              </Badge>
-            ) : (
-              <Badge variant="destructive" className="text-xs">
-                <WifiOff className="w-3 h-3 mr-1" />
-                Service indisponible
-              </Badge>
-            )}
-          </div>
+          <Alert
+            className={
+              isConnected ? "border-green-500/50" : "border-red-500/50"
+            }
+          >
+            <div className="flex items-center gap-2">
+              {isConnected ? (
+                <Wifi className="w-4 h-4 text-green-500" />
+              ) : (
+                <WifiOff className="w-4 h-4 text-red-500" />
+              )}
+              <AlertDescription className="text-sm">
+                {isConnected
+                  ? "Connecté à Firebase - Validation en temps réel"
+                  : "Déconnecté de Firebase - Validation impossible"}
+              </AlertDescription>
+            </div>
+          </Alert>
 
           {/* Features badges */}
           <div className="flex flex-wrap justify-center gap-2">
@@ -168,23 +202,12 @@ const FirebaseLicenseGate = ({ onLicenseValid }: FirebaseLicenseGateProps) => {
             </Badge>
             <Badge className="bg-blue-100 text-blue-700 text-xs">
               <Shield className="w-3 h-3 mr-1" />
-              Sécurisé
+              Firebase Cloud
             </Badge>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* Alerte si pas de connexion */}
-          {!isConnected && (
-            <Alert className="border-orange-200 bg-orange-50">
-              <AlertCircle className="w-4 h-4" />
-              <AlertDescription className="text-orange-800">
-                Le service de licenses est temporairement indisponible. Veuillez
-                vérifier votre connexion internet et réessayer.
-              </AlertDescription>
-            </Alert>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="license" className="flex items-center gap-2">
@@ -214,7 +237,7 @@ const FirebaseLicenseGate = ({ onLicenseValid }: FirebaseLicenseGateProps) => {
               {isValidating ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                  Validation en cours...
+                  Validation Firebase...
                 </>
               ) : (
                 <>
@@ -223,91 +246,39 @@ const FirebaseLicenseGate = ({ onLicenseValid }: FirebaseLicenseGateProps) => {
                 </>
               )}
             </Button>
-
-            {/* Bouton de test Firebase (mode développement) */}
-            {import.meta.env.DEV && (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full mt-2"
-                onClick={async () => {
-                  try {
-                    console.log("🧪 Test système de license complet...");
-                    const connected =
-                      await hybridLicenseManager.testConnection();
-                    const status = hybridLicenseManager.getStatus();
-                    console.log("Connexion:", connected, "Mode:", status.mode);
-
-                    if (connected) {
-                      const licenses =
-                        await hybridLicenseManager.getAllLicenses();
-                      console.log("Licenses trouvées:", licenses);
-
-                      if (licenseKey.trim()) {
-                        const validation =
-                          await hybridLicenseManager.validateLicense(
-                            licenseKey.trim(),
-                          );
-                        console.log("Test validation:", validation);
-                      }
-                    }
-
-                    toast.info(
-                      `Test terminé (${status.mode}) - Voir console pour détails`,
-                    );
-                  } catch (error) {
-                    console.error("Erreur test:", error);
-                    toast.error("Erreur durant le test");
-                  }
-                }}
-              >
-                🧪 Test License System (Dev)
-              </Button>
-            )}
           </form>
 
-          {/* Informations sur les licenses */}
-          <div className="space-y-3">
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-500" />
-                Important à savoir
-              </h4>
-              <ul className="text-xs text-muted-foreground space-y-1">
-                <li>• Chaque license a un nombre d'utilisations limité</li>
-                <li>
-                  • Une fois utilisée sur un appareil, elle y reste active
-                </li>
-                <li>• Les licenses expirent après une durée déterminée</li>
-                <li>• Données synchronisées en temps réel avec Firebase</li>
-                <li>• Gardez votre clé en sécurité</li>
-              </ul>
+          {/* Bouton de test pour les admins */}
+          {isConnected && (
+            <div className="border-t pt-4">
+              <Button
+                variant="outline"
+                onClick={createTestLicense}
+                className="w-full text-xs"
+                disabled={isValidating}
+              >
+                <Key className="w-3 h-3 mr-2" />
+                Créer License Test (Admin)
+              </Button>
             </div>
+          )}
 
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground">
-                Vous êtes administrateur ?
-                <br />
-                <kbd className="px-2 py-1 bg-muted rounded text-xs">
-                  Ctrl + F1
-                </kbd>{" "}
-                pour accéder au panel
-              </p>
-            </div>
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">
+              Système Firebase - Sauvegarde cloud sécurisée
+              <br />
+              <kbd className="px-2 py-1 bg-muted rounded text-xs">
+                Ctrl + F1
+              </kbd>{" "}
+              pour le panel admin
+            </p>
           </div>
         </CardContent>
       </Card>
 
       {/* Footer */}
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-center text-xs text-muted-foreground">
-        <p className="flex items-center gap-1 justify-center">
-          NothingAI © 2024 - Système de License Sécurisé
-          {isConnected ? (
-            <Wifi className="w-3 h-3 text-green-500" />
-          ) : (
-            <WifiOff className="w-3 h-3 text-red-500" />
-          )}
-        </p>
+        <p>NothingAI © 2024 - Système Firebase Cloud 🔥</p>
       </div>
     </div>
   );
