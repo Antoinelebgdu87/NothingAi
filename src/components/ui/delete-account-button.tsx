@@ -48,16 +48,16 @@ const DeleteAccountButton = () => {
             <AlertTriangle className="w-5 h-5 text-red-500" />
             Supprimer le compte
           </AlertDialogTitle>
-          <AlertDialogDescription>
+          <AlertDialogDescription asChild>
             <div className="space-y-3">
-              <p>
+              <div>
                 <strong>Attention :</strong> Cette action va supprimer
                 définitivement votre compte et toutes vos données.
-              </p>
+              </div>
               <div className="bg-red-50 p-3 rounded-lg border border-red-200">
-                <p className="text-red-800 text-sm">
+                <div className="text-red-800 text-sm">
                   ⚠️ <strong>Conséquences :</strong>
-                </p>
+                </div>
                 <ul className="text-red-700 text-sm mt-2 space-y-1">
                   <li>• Votre license actuelle sera révoquée</li>
                   <li>• Toutes vos conversations seront perdues</li>
@@ -65,10 +65,10 @@ const DeleteAccountButton = () => {
                   <li>• Une nouvelle license sera requise</li>
                 </ul>
               </div>
-              <p className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600">
                 Cette action est irréversible. Êtes-vous sûr de vouloir
                 continuer ?
-              </p>
+              </div>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
