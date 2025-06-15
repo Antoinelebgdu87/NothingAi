@@ -62,7 +62,7 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        // NothingAI custom colors
+        // NothingAI custom colors - lighter theme
         nothingai: {
           50: "#f0f9ff",
           100: "#e0f2fe",
@@ -76,18 +76,19 @@ export default {
           900: "#0c4a6e",
           950: "#082f49",
         },
-        dark: {
-          50: "#f8fafc",
-          100: "#f1f5f9",
-          200: "#e2e8f0",
-          300: "#cbd5e1",
-          400: "#94a3b8",
-          500: "#64748b",
-          600: "#475569",
-          700: "#334155",
-          800: "#1e293b",
-          900: "#0f172a",
-          950: "#020617",
+        // Lighter grays
+        light: {
+          50: "#ffffff",
+          100: "#f8fafc",
+          200: "#f1f5f9",
+          300: "#e2e8f0",
+          400: "#cbd5e1",
+          500: "#94a3b8",
+          600: "#64748b",
+          700: "#475569",
+          800: "#334155",
+          900: "#1e293b",
+          950: "#0f172a",
         },
       },
       borderRadius: {
@@ -132,6 +133,20 @@ export default {
           "0%": { width: "0" },
           "100%": { width: "100%" },
         },
+        float: {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
+        "gradient-x": {
+          "0%, 100%": {
+            "background-size": "200% 200%",
+            "background-position": "left center",
+          },
+          "50%": {
+            "background-size": "200% 200%",
+            "background-position": "right center",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -141,11 +156,19 @@ export default {
         glow: "glow 2s ease-in-out infinite",
         "pulse-dot": "pulse-dot 1.4s ease-in-out infinite",
         typing: "typing 2s steps(40, end)",
+        float: "float 3s ease-in-out infinite",
+        "gradient-x": "gradient-x 15s ease infinite",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
         "gradient-conic":
           "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
+        "light-gradient":
+          "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%)",
+        "primary-gradient":
+          "linear-gradient(135deg, #0ea5e9 0%, #3b82f6 50%, #6366f1 100%)",
+        "white-gradient":
+          "linear-gradient(135deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%)",
       },
     },
   },
