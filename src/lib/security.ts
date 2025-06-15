@@ -1,6 +1,6 @@
 // Système de sécurité et protection pour NothingAI
 class SecurityManager {
-  private protectionEnabled: boolean = true;
+  private _protectionEnabled: boolean = true;
   private intervals: NodeJS.Timeout[] = [];
 
   constructor() {
@@ -8,7 +8,7 @@ class SecurityManager {
   }
 
   private initProtection() {
-    if (!this.protectionEnabled) return;
+    if (!this._protectionEnabled) return;
 
     // Protection contre les DevTools
     this.protectDevTools();
@@ -43,7 +43,7 @@ class SecurityManager {
     let devtools = { open: false, orientation: null };
     const threshold = 160;
 
-    setInterval(() => {
+    const checkDevTools = () => {
       if (
         window.outerHeight - window.innerHeight > threshold ||
         window.outerWidth - window.innerWidth > threshold
@@ -55,7 +55,10 @@ class SecurityManager {
       } else {
         devtools.open = false;
       }
-    }, 500);
+    };
+
+    const interval = setInterval(checkDevTools, 500);
+    this.intervals.push(interval);
   }
 
   private onDevToolsDetected() {
@@ -90,15 +93,17 @@ class SecurityManager {
   }
 
   private protectRightClick() {
-    document.addEventListener("contextmenu", (e) => {
+    const handleContextMenu = (e: Event) => {
       e.preventDefault();
       e.stopPropagation();
       return false;
-    });
+    };
+
+    document.addEventListener("contextmenu", handleContextMenu);
   }
 
   private protectKeyboardShortcuts() {
-    document.addEventListener("keydown", (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       // F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U, Ctrl+S, Ctrl+Shift+C
       if (
         e.key === "F12" ||
@@ -119,19 +124,24 @@ class SecurityManager {
         e.stopPropagation();
         return false;
       }
-    });
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
   }
 
   private protectTextSelection() {
-    document.addEventListener("selectstart", (e) => {
+    const handleSelectStart = (e: Event) => {
       e.preventDefault();
       return false;
-    });
+    };
 
-    document.addEventListener("dragstart", (e) => {
+    const handleDragStart = (e: Event) => {
       e.preventDefault();
       return false;
-    });
+    };
+
+    document.addEventListener("selectstart", handleSelectStart);
+    document.addEventListener("dragstart", handleDragStart);
 
     // CSS pour désactiver la sélection
     const style = document.createElement("style");
@@ -172,22 +182,27 @@ class SecurityManager {
   }
 
   private protectDragDrop() {
-    document.addEventListener("dragover", (e) => {
+    const handleDragOver = (e: Event) => {
       e.preventDefault();
       e.stopPropagation();
-    });
+    };
 
-    document.addEventListener("drop", (e) => {
+    const handleDrop = (e: Event) => {
       e.preventDefault();
       e.stopPropagation();
-    });
+    };
+
+    document.addEventListener("dragover", handleDragOver);
+    document.addEventListener("drop", handleDrop);
   }
 
   private protectPrint() {
-    window.addEventListener("beforeprint", (e) => {
+    const handleBeforePrint = (e: Event) => {
       e.preventDefault();
       return false;
-    });
+    };
+
+    window.addEventListener("beforeprint", handleBeforePrint);
 
     // Redéfinir window.print
     window.print = () => {
@@ -196,19 +211,23 @@ class SecurityManager {
   }
 
   public disable() {
-    this.protectionEnabled = false;
+    this._protectionEnabled = false;
     this.intervals.forEach((interval) => clearInterval(interval));
     this.intervals = [];
   }
 
   public enable() {
-    this.protectionEnabled = true;
+    this._protectionEnabled = true;
     this.initProtection();
+  }
+
+  public get protectionEnabled(): boolean {
+    return this._protectionEnabled;
   }
 }
 
 // Instance globale
 export const securityManager = new SecurityManager();
 
-// Protection contre la modification de l'objet
-Object.freeze(securityManager);
+// Ne pas freezer l'objet pour permettre les modifications
+// Object.freeze(securityManager); // <-- Retiré pour éviter l'erreur
