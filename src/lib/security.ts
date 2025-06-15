@@ -101,17 +101,33 @@ class SecurityManager {
     try {
       // Protection plus douce - permettre la sélection dans les inputs
       const handleSelectStart = (e: Event) => {
-        const target = e.target as HTMLElement;
+        const target = e.target;
+
+        // Vérifier que target est un élément HTML
+        if (!target || !(target instanceof HTMLElement)) {
+          return true; // Permettre si ce n'est pas un élément HTML
+        }
 
         // Permettre la sélection dans les éléments d'input
         if (
-          target &&
-          (target.tagName === "INPUT" ||
-            target.tagName === "TEXTAREA" ||
-            target.contentEditable === "true" ||
-            target.closest("input, textarea, [contenteditable]"))
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.contentEditable === "true"
         ) {
           return true;
+        }
+
+        // Vérifier avec closest() seulement si target est un Element
+        if (typeof target.closest === "function") {
+          try {
+            if (target.closest("input, textarea, [contenteditable]")) {
+              return true;
+            }
+          } catch (error) {
+            // Si closest() échoue, permettre la sélection par sécurité
+            console.warn("Erreur avec closest():", error);
+            return true;
+          }
         }
 
         e.preventDefault();
@@ -131,7 +147,7 @@ class SecurityManager {
           user-select: none !important;
           -webkit-touch-callout: none !important;
         }
-        
+
         input, textarea, [contenteditable="true"], code, pre {
           -webkit-user-select: text !important;
           -moz-user-select: text !important;
@@ -210,11 +226,21 @@ class SecurityManager {
 
   private protectDragDrop() {
     const handleDragOver = (e: Event) => {
-      const target = e.target as HTMLElement;
+      const target = e.target;
 
-      // Permettre le drag & drop dans certains éléments
-      if (target && target.closest("[data-allow-drop]")) {
-        return;
+      // Vérifier que target est un élément HTML avec closest()
+      if (
+        target &&
+        target instanceof HTMLElement &&
+        typeof target.closest === "function"
+      ) {
+        try {
+          if (target.closest("[data-allow-drop]")) {
+            return;
+          }
+        } catch (error) {
+          console.warn("Erreur avec closest() dans dragover:", error);
+        }
       }
 
       e.preventDefault();
@@ -222,11 +248,21 @@ class SecurityManager {
     };
 
     const handleDrop = (e: Event) => {
-      const target = e.target as HTMLElement;
+      const target = e.target;
 
-      // Permettre le drop dans certains éléments
-      if (target && target.closest("[data-allow-drop]")) {
-        return;
+      // Vérifier que target est un élément HTML avec closest()
+      if (
+        target &&
+        target instanceof HTMLElement &&
+        typeof target.closest === "function"
+      ) {
+        try {
+          if (target.closest("[data-allow-drop]")) {
+            return;
+          }
+        } catch (error) {
+          console.warn("Erreur avec closest() dans drop:", error);
+        }
       }
 
       e.preventDefault();
