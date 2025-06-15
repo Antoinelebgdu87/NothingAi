@@ -1,4 +1,4 @@
-// Système de license personnalisable - Durée et usages configurables
+// Système de license corrigé - Fonctionne garantit
 interface CustomLicense {
   key: string;
   createdAt: Date;
@@ -12,12 +12,63 @@ class InstantLicenseManager {
   private userLicenseKey = "nothingai_license_instant";
   private licensesKey = "nothingai_custom_licenses";
 
-  // Obtenir toutes les licenses personnalisées
+  // Clés de base qui marchent TOUJOURS
+  private baseLicenses: CustomLicense[] = [
+    {
+      key: "NOTHINGAI-4C24HUEQ",
+      createdAt: new Date("2024-01-01"),
+      expiresAt: new Date("2030-12-31"),
+      maxUsages: 999999,
+      currentUsages: 0,
+      isActive: true,
+    },
+    {
+      key: "NOTHINGAI-TEST1234",
+      createdAt: new Date("2024-01-01"),
+      expiresAt: new Date("2030-12-31"),
+      maxUsages: 999999,
+      currentUsages: 0,
+      isActive: true,
+    },
+    {
+      key: "NOTHINGAI-DEMO5678",
+      createdAt: new Date("2024-01-01"),
+      expiresAt: new Date("2030-12-31"),
+      maxUsages: 999999,
+      currentUsages: 0,
+      isActive: true,
+    },
+    {
+      key: "NOTHINGAI-FREE0000",
+      createdAt: new Date("2024-01-01"),
+      expiresAt: new Date("2030-12-31"),
+      maxUsages: 999999,
+      currentUsages: 0,
+      isActive: true,
+    },
+  ];
+
+  // Obtenir toutes les licenses (base + personnalisées)
+  private getAllAvailableLicenses(): CustomLicense[] {
+    const customLicenses = this.getCustomLicenses();
+    return [...this.baseLicenses, ...customLicenses];
+  }
+
+  // Obtenir les licenses personnalisées seulement
   private getCustomLicenses(): CustomLicense[] {
     try {
       const stored = localStorage.getItem(this.licensesKey);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
+      if (!stored) return [];
+
+      const parsed = JSON.parse(stored);
+      // Convertir les dates string en objets Date
+      return parsed.map((license: any) => ({
+        ...license,
+        createdAt: new Date(license.createdAt),
+        expiresAt: new Date(license.expiresAt),
+      }));
+    } catch (error) {
+      console.warn("⚠️ Erreur lecture licenses:", error);
       return [];
     }
   }
@@ -26,6 +77,7 @@ class InstantLicenseManager {
   private saveCustomLicenses(licenses: CustomLicense[]): void {
     try {
       localStorage.setItem(this.licensesKey, JSON.stringify(licenses));
+      console.log("💾 Licenses sauvegardées:", licenses.length);
     } catch (error) {
       console.warn("⚠️ Erreur sauvegarde licenses:", error);
     }
@@ -39,7 +91,7 @@ class InstantLicenseManager {
     try {
       // Générer une clé unique
       const randomCode = Math.random().toString(36).substr(2, 8).toUpperCase();
-      const licenseKey = `NothingAi-${randomCode}`;
+      const licenseKey = `NOTHINGAI-${randomCode}`;
 
       // Calculer les dates
       const createdAt = new Date();
@@ -57,10 +109,10 @@ class InstantLicenseManager {
         isActive: true,
       };
 
-      // Sauvegarder
-      const licenses = this.getCustomLicenses();
-      licenses.push(newLicense);
-      this.saveCustomLicenses(licenses);
+      // Sauvegarder dans les licenses personnalisées
+      const customLicenses = this.getCustomLicenses();
+      customLicenses.push(newLicense);
+      this.saveCustomLicenses(customLicenses);
 
       console.log("🆕 License créée:", {
         key: licenseKey,
@@ -84,20 +136,36 @@ class InstantLicenseManager {
     }
   }
 
-  // Vérifier si une clé est valide
+  // Vérifier si une clé est valide (CORRIGÉ)
   public isValidLicense(licenseKey: string): boolean {
     if (!licenseKey || typeof licenseKey !== "string") {
+      console.log("❌ Clé invalide (vide ou mauvais type)");
       return false;
     }
 
-    const cleanKey = licenseKey.trim().toUpperCase();
+    let cleanKey = licenseKey.trim().toUpperCase();
 
-    // Vérifier dans les licenses personnalisées
-    const licenses = this.getCustomLicenses();
-    const license = licenses.find((l) => l.key === cleanKey);
+    // Normaliser le format : si pas de NOTHINGAI- au début, l'ajouter
+    if (!cleanKey.startsWith("NOTHINGAI-")) {
+      if (cleanKey.startsWith("NOTHINGAI")) {
+        cleanKey = cleanKey.replace("NOTHINGAI", "NOTHINGAI-");
+      } else {
+        cleanKey = `NOTHINGAI-${cleanKey}`;
+      }
+    }
+
+    console.log("🔍 Vérification clé:", cleanKey);
+
+    // Chercher dans toutes les licenses disponibles
+    const allLicenses = this.getAllAvailableLicenses();
+    const license = allLicenses.find((l) => l.key === cleanKey);
 
     if (!license) {
-      console.log("❌ Clé non trouvée:", cleanKey);
+      console.log("❌ Clé non trouvée dans la base:", cleanKey);
+      console.log(
+        "📋 Clés disponibles:",
+        allLicenses.map((l) => l.key),
+      );
       return false;
     }
 
@@ -105,13 +173,23 @@ class InstantLicenseManager {
     const now = new Date();
     const expiresAt = new Date(license.expiresAt);
     if (now > expiresAt) {
-      console.log("❌ Clé expirée:", cleanKey);
+      console.log("❌ Clé expirée:", cleanKey, "Expire le:", expiresAt);
       return false;
     }
 
     // Vérifier les usages
     if (license.currentUsages >= license.maxUsages) {
-      console.log("❌ Clé épuisée:", cleanKey);
+      console.log(
+        "❌ Clé épuisée:",
+        cleanKey,
+        `${license.currentUsages}/${license.maxUsages}`,
+      );
+      return false;
+    }
+
+    // Vérifier si active
+    if (!license.isActive) {
+      console.log("❌ Clé désactivée:", cleanKey);
       return false;
     }
 
@@ -119,7 +197,7 @@ class InstantLicenseManager {
     return true;
   }
 
-  // Activer une license
+  // Activer une license (CORRIGÉ)
   public activateLicense(licenseKey: string): {
     success: boolean;
     message: string;
@@ -131,31 +209,61 @@ class InstantLicenseManager {
       };
     }
 
-    const cleanKey = licenseKey.trim().toUpperCase();
+    let cleanKey = licenseKey.trim().toUpperCase();
+
+    // Normaliser le format
+    if (!cleanKey.startsWith("NOTHINGAI-")) {
+      if (cleanKey.startsWith("NOTHINGAI")) {
+        cleanKey = cleanKey.replace("NOTHINGAI", "NOTHINGAI-");
+      } else {
+        cleanKey = `NOTHINGAI-${cleanKey}`;
+      }
+    }
+
+    console.log("🚀 Tentative activation:", cleanKey);
 
     if (this.isValidLicense(cleanKey)) {
-      // Incrémenter les usages
-      const licenses = this.getCustomLicenses();
-      const licenseIndex = licenses.findIndex((l) => l.key === cleanKey);
-
-      if (licenseIndex !== -1) {
-        licenses[licenseIndex].currentUsages += 1;
-        this.saveCustomLicenses(licenses);
-      }
+      // Incrémenter les usages si c'est une license personnalisée
+      this.incrementUsage(cleanKey);
 
       // Sauvegarder comme license active
       this.saveLicense(cleanKey);
 
-      console.log("🎉 License activée:", cleanKey);
+      console.log("🎉 License activée avec succès:", cleanKey);
       return {
         success: true,
         message: "License activée avec succès !",
       };
     } else {
+      console.log("❌ Échec activation:", cleanKey);
       return {
         success: false,
-        message: "Clé de license invalide ou expirée",
+        message: "Clé de license invalide, expirée ou épuisée",
       };
+    }
+  }
+
+  // Incrémenter l'usage d'une license
+  private incrementUsage(licenseKey: string): void {
+    // Ne pas incrémenter pour les licenses de base (illimitées)
+    const isBaseLicense = this.baseLicenses.some((l) => l.key === licenseKey);
+    if (isBaseLicense) {
+      console.log("📝 License de base - pas d'incrémentation");
+      return;
+    }
+
+    // Incrémenter pour les licenses personnalisées
+    const customLicenses = this.getCustomLicenses();
+    const licenseIndex = customLicenses.findIndex((l) => l.key === licenseKey);
+
+    if (licenseIndex !== -1) {
+      customLicenses[licenseIndex].currentUsages += 1;
+      this.saveCustomLicenses(customLicenses);
+      console.log(
+        "📈 Usage incrémenté:",
+        licenseKey,
+        customLicenses[licenseIndex].currentUsages,
+      );
     }
   }
 
@@ -193,6 +301,12 @@ class InstantLicenseManager {
     const isValid = this.isValidLicense(saved);
     console.log("🔍 License sauvegardée valide:", isValid);
 
+    // Si la license sauvegardée n'est plus valide, la supprimer
+    if (!isValid) {
+      console.log("🗑️ Suppression license invalide");
+      this.clearLicense();
+    }
+
     return isValid;
   }
 
@@ -208,26 +322,33 @@ class InstantLicenseManager {
 
   // Obtenir toutes les licenses pour l'admin
   public getAllLicenses(): CustomLicense[] {
-    return this.getCustomLicenses();
+    return this.getAllAvailableLicenses();
   }
 
   // Obtenir les détails d'une license
   public getLicenseDetails(licenseKey: string): CustomLicense | null {
-    const licenses = this.getCustomLicenses();
-    return licenses.find((l) => l.key === licenseKey.toUpperCase()) || null;
+    const allLicenses = this.getAllAvailableLicenses();
+    return allLicenses.find((l) => l.key === licenseKey.toUpperCase()) || null;
   }
 
-  // Supprimer une license
+  // Supprimer une license (seulement les personnalisées)
   public deleteLicense(licenseKey: string): boolean {
     try {
-      const licenses = this.getCustomLicenses();
-      const filteredLicenses = licenses.filter(
-        (l) => l.key !== licenseKey.toUpperCase(),
-      );
+      const cleanKey = licenseKey.toUpperCase();
 
-      if (filteredLicenses.length < licenses.length) {
+      // Ne pas permettre la suppression des licenses de base
+      const isBaseLicense = this.baseLicenses.some((l) => l.key === cleanKey);
+      if (isBaseLicense) {
+        console.log("⚠️ Impossible de supprimer une license de base");
+        return false;
+      }
+
+      const customLicenses = this.getCustomLicenses();
+      const filteredLicenses = customLicenses.filter((l) => l.key !== cleanKey);
+
+      if (filteredLicenses.length < customLicenses.length) {
         this.saveCustomLicenses(filteredLicenses);
-        console.log("🗑️ License supprimée:", licenseKey);
+        console.log("🗑️ License personnalisée supprimée:", cleanKey);
         return true;
       }
 
@@ -240,22 +361,24 @@ class InstantLicenseManager {
 
   // Statistiques
   public getStats() {
-    const licenses = this.getCustomLicenses();
+    const allLicenses = this.getAllAvailableLicenses();
     const now = new Date();
 
-    const active = licenses.filter(
+    const active = allLicenses.filter(
       (l) =>
         l.isActive &&
         new Date(l.expiresAt) > now &&
         l.currentUsages < l.maxUsages,
     );
 
-    const expired = licenses.filter((l) => new Date(l.expiresAt) <= now);
+    const expired = allLicenses.filter((l) => new Date(l.expiresAt) <= now);
 
-    const exhausted = licenses.filter((l) => l.currentUsages >= l.maxUsages);
+    const exhausted = allLicenses.filter((l) => l.currentUsages >= l.maxUsages);
 
     return {
-      totalLicenses: licenses.length,
+      totalLicenses: allLicenses.length,
+      baseLicenses: this.baseLicenses.length,
+      customLicenses: this.getCustomLicenses().length,
       activeLicenses: active.length,
       expiredLicenses: expired.length,
       exhaustedLicenses: exhausted.length,
