@@ -488,40 +488,19 @@ const Index = () => {
                               <h4 className="text-sm font-medium text-green-500 mb-1 flex items-center">
                                 <Zap className="w-3 h-3 mr-1" />
                                 Modèles Gratuits
-                              </h4>
-                              {recommendedModels.free.map((model) => (
-                                <SelectItem key={model} value={model}>
-                                  <div className="flex items-center space-x-2">
-                                    <span>
-                                      {model
-                                        .split("/")
-                                        .pop()
-                                        ?.replace("-instruct", "")
-                                        .replace(":free", "")}
-                                    </span>
-                                    <Badge className="bg-green-500/10 text-green-500 text-xs">
-                                      Gratuit
-                                    </Badge>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </div>
-                            <div className="mb-2">
-                              <h4 className="text-sm font-medium text-blue-500 mb-1 flex items-center">
-                                <Brain className="w-3 h-3 mr-1" />
-                                Modèles Abordables
-                              </h4>
-                              {recommendedModels.affordable.map((model) => (
-                                <SelectItem key={model} value={model}>
-                                  <div className="flex items-center space-x-2">
-                                    <span>
-                                      {model
-                                        .split("/")
-                                        .pop()
-                                        ?.replace("-instruct", "")}
-                                    </span>
-                                    <Badge className="bg-blue-500/10 text-blue-500 text-xs">
-                                      Pro
+                            onClick={() => {
+                              // Supprimer complètement le compte
+                              simpleLicenseManager.deleteAccount();
+
+                              toast.success("Compte supprimé avec succès !", {
+                                description: "Redirection vers l'écran de license..."
+                              });
+
+                              // Recharger la page pour retourner à l'écran de license
+                              setTimeout(() => {
+                                window.location.reload();
+                              }, 1500);
+                            }}
                                     </Badge>
                                   </div>
                                 </SelectItem>
