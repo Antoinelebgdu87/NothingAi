@@ -12,6 +12,7 @@ import {
   type HuggingFaceImage,
   HuggingFaceAPI,
 } from "@/lib/huggingface-api";
+import { contentModerator } from "@/lib/content-moderation";
 import { toast } from "sonner";
 
 export type ImageProvider = "pollinations" | "huggingface";
@@ -45,7 +46,8 @@ const DEFAULT_SETTINGS: ImageGenerationSettings = {
   width: 1024,
   height: 1024,
   enhance: true,
-  negative_prompt: "blurry, bad quality, distorted, ugly, low resolution",
+  negative_prompt:
+    "nsfw, nude, naked, sexual, explicit, inappropriate, violence, disturbing, harmful, blurry, bad quality, distorted, ugly, low resolution",
   num_inference_steps: 20,
   guidance_scale: 7.5,
 };
@@ -58,12 +60,12 @@ export function useImageGeneration() {
   >([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Generate image mutation with enhanced error handling
+  // Generate image mutation with content moderation
   const generateImageMutation = useMutation({
     mutationFn: async (prompt: string) => {
       setIsGenerating(true);
 
-      // Validate input
+      // Validation de base
       if (!prompt || prompt.trim().length === 0) {
         throw new Error("Le prompt ne peut pas être vide");
       }
@@ -76,9 +78,23 @@ export function useImageGeneration() {
         throw new Error("Le prompt ne peut pas dépasser 500 caractères");
       }
 
+      // ⚠️ MODÉRATION DE CONTENU ⚠️
+      console.log("🛡️ Vérification du contenu...");
+      const moderation = contentModerator.validateAndCleanImagePrompt(prompt);
+
+      if (!moderation.isValid) {
+        console.log("❌ Contenu bloqué:", moderation.error);
+        throw new Error(
+          `❌ ${moderation.error}\n\n💡 Suggestion: ${moderation.suggestion || "Reformulez votre demande de manière plus appropriée"}`,
+        );
+      }
+
+      const safePrompt = moderation.cleanedPrompt || prompt;
+      console.log("✅ Contenu validé, génération sécurisée");
+
       try {
         if (settings.provider === "huggingface") {
-          // Validate HF specific parameters
+          // Validation HF spécifique
           if (
             settings.width % 64 !== 0 ||
             settings.height % 64 !== 0 ||
@@ -92,14 +108,24 @@ export function useImageGeneration() {
             );
           }
 
-          // Use Hugging Face API
+          // Use Hugging Face API avec sécurité renforcée
           const hfAPI = settings.huggingFaceToken
             ? new HuggingFaceAPI(settings.huggingFaceToken)
             : huggingFaceAPI;
 
+          // Prompt négatif sécurisé
+          const safeNegativePrompt = [
+            settings.negative_prompt || "",
+            contentModerator.getSafetyNegativePrompt(),
+          ]
+            .filter(Boolean)
+            .join(", ");
+
           const request: HuggingFaceRequest = {
-            prompt: settings.enhance ? hfAPI.enhancePrompt(prompt) : prompt,
-            negative_prompt: settings.negative_prompt,
+            prompt: settings.enhance
+              ? hfAPI.enhancePrompt(safePrompt)
+              : safePrompt,
+            negative_prompt: safeNegativePrompt,
             width: settings.width,
             height: settings.height,
             num_inference_steps: settings.num_inference_steps,
@@ -107,7 +133,7 @@ export function useImageGeneration() {
             seed: settings.seed,
           };
 
-          console.log("Génération HF avec paramètres:", request);
+          console.log("🎨 Génération HF sécurisée avec prompt:", safePrompt);
 
           const generatedImage = await hfAPI.generateImage(
             request,
@@ -123,7 +149,7 @@ export function useImageGeneration() {
           setGeneratedImages((prev) => [unifiedImage, ...prev]);
           return unifiedImage;
         } else {
-          // Validate Pollinations specific parameters
+          // Validation Pollinations spécifique
           if (
             settings.width < 256 ||
             settings.height < 256 ||
@@ -135,9 +161,9 @@ export function useImageGeneration() {
             );
           }
 
-          // Use Pollinations API
+          // Use Pollinations API avec sécurité
           const request: ImageGenerationRequest = {
-            prompt,
+            prompt: safePrompt, // Prompt déjà nettoyé par la modération
             width: settings.width,
             height: settings.height,
             model: settings.pollinationsModel as any,
@@ -147,7 +173,10 @@ export function useImageGeneration() {
             private: false,
           };
 
-          console.log("Génération Pollinations avec paramètres:", request);
+          console.log(
+            "🎨 Génération Pollinations sécurisée avec prompt:",
+            safePrompt,
+          );
 
           const generatedImage = await imageGenerator.generateImage(request);
           setGeneratedImages((prev) => [generatedImage, ...prev]);
@@ -161,15 +190,28 @@ export function useImageGeneration() {
     onSuccess: (image) => {
       const provider =
         settings.provider === "huggingface" ? "Hugging Face" : "Pollinations";
-      toast.success(`Image générée avec succès via ${provider} !`);
+      toast.success(`🎨 Image sécurisée générée via ${provider} !`);
       setIsGenerating(false);
     },
     onError: (error: Error) => {
       console.error("Error generating image:", error);
 
-      // More specific error messages
+      // Messages d'erreur spécialisés
       let errorMessage = error.message;
 
+      // Erreurs de modération
+      if (errorMessage.includes("❌")) {
+        toast.error(errorMessage, {
+          duration: 8000, // Plus long pour les erreurs de modération
+          style: {
+            maxWidth: "500px",
+          },
+        });
+        setIsGenerating(false);
+        return;
+      }
+
+      // Autres erreurs techniques
       if (errorMessage.includes("503")) {
         errorMessage =
           "Service temporairement indisponible. Réessayez dans quelques minutes.";
@@ -188,8 +230,6 @@ export function useImageGeneration() {
         errorMessage.includes("empty")
       ) {
         errorMessage = "L'image générée est vide. Essayez un prompt différent.";
-      } else if (errorMessage.includes("CORS")) {
-        errorMessage = "Problème de réseau. Vérifiez votre connexion internet.";
       }
 
       toast.error(`Erreur: ${errorMessage}`);
@@ -215,6 +255,17 @@ export function useImageGeneration() {
 
       if (cleanPrompt.length < 3) {
         toast.error("La description doit contenir au moins 3 caractères");
+        return;
+      }
+
+      // Pré-vérification rapide pour l'UX
+      if (!contentModerator.isImagePromptSafe(cleanPrompt)) {
+        toast.error(
+          "❌ Contenu inapproprié détecté. Reformulez votre demande.",
+          {
+            duration: 5000,
+          },
+        );
         return;
       }
 
@@ -261,6 +312,16 @@ export function useImageGeneration() {
         } else {
           updated.width = Math.max(256, Math.min(2048, updated.width));
           updated.height = Math.max(256, Math.min(2048, updated.height));
+        }
+
+        // Assurer que le negative prompt contient toujours les éléments de sécurité
+        if (newSettings.negative_prompt !== undefined) {
+          const safetyPrompt = contentModerator.getSafetyNegativePrompt();
+          if (!updated.negative_prompt?.includes("nsfw")) {
+            updated.negative_prompt = updated.negative_prompt
+              ? `${updated.negative_prompt}, ${safetyPrompt}`
+              : safetyPrompt;
+          }
         }
 
         return updated;
@@ -343,6 +404,12 @@ export function useImageGeneration() {
 
   const regenerateImage = useCallback(
     (originalImage: UnifiedGeneratedImage) => {
+      // Vérifier la sécurité avant de régénérer
+      if (!contentModerator.isImagePromptSafe(originalImage.prompt)) {
+        toast.error("❌ Impossible de régénérer: contenu inapproprié détecté");
+        return;
+      }
+
       // Regenerate with same prompt but new seed
       const newSeed = Math.floor(Math.random() * 1000000);
       const oldSettings = settings;
@@ -386,7 +453,7 @@ export function useImageGeneration() {
     return ImageGenerationAPI.isImageGenerationRequest(text);
   }, []);
 
-  // Auto-generate response with image
+  // Auto-generate response with image (avec modération)
   const generateImageResponse = useCallback(
     async (
       userPrompt: string,
@@ -410,19 +477,39 @@ export function useImageGeneration() {
           };
         }
 
-        const image = await generateImage(extractedPrompt);
+        // Vérification de sécurité avant génération
+        const moderation =
+          contentModerator.validateAndCleanImagePrompt(extractedPrompt);
+
+        if (!moderation.isValid) {
+          return {
+            text: `❌ Je ne peux pas générer cette image : ${moderation.error}\n\n💡 ${moderation.suggestion || "Essayez de reformuler votre demande de manière plus appropriée."}`,
+          };
+        }
+
+        const image = await generateImage(
+          moderation.cleanedPrompt || extractedPrompt,
+        );
         const provider =
           settings.provider === "huggingface"
             ? "Hugging Face (Stable Diffusion)"
             : "Pollinations.ai";
 
         return {
-          text: `J'ai généré une image basée sur votre demande : "${extractedPrompt}" via ${provider}. Voici le résultat :`,
+          text: `🎨 J'ai généré une image sécurisée basée sur votre demande via ${provider}. Voici le résultat :`,
           image,
         };
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Erreur inconnue";
+
+        // Gestion spéciale des erreurs de modération
+        if (errorMessage.includes("❌")) {
+          return {
+            text: `${errorMessage}\n\nJe suis configuré pour générer uniquement du contenu approprié et sûr. 🛡️`,
+          };
+        }
+
         return {
           text: `Désolé, je n'ai pas pu générer l'image demandée. ${errorMessage}. Voulez-vous essayer avec une description différente ?`,
         };
@@ -470,6 +557,12 @@ export function useImageGeneration() {
     huggingFaceModels: huggingFaceAPI.getAvailableModels(),
     pollinationsDimensions: imageGenerator.getCommonDimensions(),
     huggingFaceDimensions: huggingFaceAPI.getRecommendedDimensions(),
+
+    // Security
+    isPromptSafe: (prompt: string) =>
+      contentModerator.isImagePromptSafe(prompt),
+    moderatePrompt: (prompt: string) =>
+      contentModerator.moderateImagePrompt(prompt),
 
     // Error handling
     error: generateImageMutation.error,
