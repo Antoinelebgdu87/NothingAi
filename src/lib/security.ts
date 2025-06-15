@@ -1,70 +1,114 @@
-// Système de sécurité et protection pour NothingAI
+// Système de sécurité et protection pour NothingAI - Version améliorée
 class SecurityManager {
   private _protectionEnabled: boolean = true;
   private intervals: NodeJS.Timeout[] = [];
+  private eventListeners: Array<{
+    element: EventTarget;
+    event: string;
+    handler: EventListener;
+  }> = [];
 
   constructor() {
-    this.initProtection();
+    try {
+      this.initProtection();
+    } catch (error) {
+      console.warn("Erreur lors de l'initialisation de la sécurité:", error);
+    }
   }
 
   private initProtection() {
     if (!this._protectionEnabled) return;
 
-    // Protection contre les DevTools
-    this.protectDevTools();
+    try {
+      // Protection contre les DevTools
+      this.protectDevTools();
 
-    // Protection contre le clic droit
-    this.protectRightClick();
+      // Protection contre le clic droit
+      this.protectRightClick();
 
-    // Protection contre les raccourcis clavier
-    this.protectKeyboardShortcuts();
+      // Protection contre les raccourcis clavier
+      this.protectKeyboardShortcuts();
 
-    // Protection contre la sélection de texte
-    this.protectTextSelection();
+      // Protection contre la sélection de texte
+      this.protectTextSelection();
 
-    // Detection continue des DevTools
-    this.startDevToolsDetection();
+      // Detection continue des DevTools
+      this.startDevToolsDetection();
 
-    // Protection contre le drag & drop
-    this.protectDragDrop();
+      // Protection contre le drag & drop
+      this.protectDragDrop();
 
-    // Protection contre l'impression
-    this.protectPrint();
+      // Protection contre l'impression
+      this.protectPrint();
+    } catch (error) {
+      console.warn("Erreur lors de l'activation de la protection:", error);
+    }
+  }
+
+  private addEventListenerSafe(
+    element: EventTarget,
+    event: string,
+    handler: EventListener,
+  ) {
+    try {
+      element.addEventListener(event, handler);
+      this.eventListeners.push({ element, event, handler });
+    } catch (error) {
+      console.warn(
+        `Erreur lors de l'ajout de l'event listener ${event}:`,
+        error,
+      );
+    }
   }
 
   private protectDevTools() {
-    // Redefinir console pour masquer les logs
-    const noop = () => {};
-    Object.keys(console).forEach((key) => {
-      (console as any)[key] = noop;
-    });
-
-    // Protection contre l'ouverture des DevTools
-    let devtools = { open: false, orientation: null };
-    const threshold = 160;
-
-    const checkDevTools = () => {
-      if (
-        window.outerHeight - window.innerHeight > threshold ||
-        window.outerWidth - window.innerWidth > threshold
-      ) {
-        if (!devtools.open) {
-          devtools.open = true;
-          this.onDevToolsDetected();
-        }
-      } else {
-        devtools.open = false;
+    try {
+      // Redefinir console pour masquer les logs (seulement en production)
+      if (import.meta.env.PROD) {
+        const noop = () => {};
+        Object.keys(console).forEach((key) => {
+          try {
+            (console as any)[key] = noop;
+          } catch (error) {
+            // Certaines propriétés peuvent être en lecture seule
+          }
+        });
       }
-    };
 
-    const interval = setInterval(checkDevTools, 500);
-    this.intervals.push(interval);
+      // Protection contre l'ouverture des DevTools
+      let devtools = { open: false };
+      const threshold = 160;
+
+      const checkDevTools = () => {
+        try {
+          if (
+            window.outerHeight - window.innerHeight > threshold ||
+            window.outerWidth - window.innerWidth > threshold
+          ) {
+            if (!devtools.open) {
+              devtools.open = true;
+              this.onDevToolsDetected();
+            }
+          } else {
+            devtools.open = false;
+          }
+        } catch (error) {
+          // Ignorer les erreurs de détection
+        }
+      };
+
+      const interval = setInterval(checkDevTools, 500);
+      this.intervals.push(interval);
+    } catch (error) {
+      console.warn("Erreur lors de la protection des DevTools:", error);
+    }
   }
 
   private onDevToolsDetected() {
-    // Rediriger vers une page blanche
-    document.documentElement.innerHTML = `
-      <div style="
+    try {
+      // Rediriger vers une page blanche
+      const overlay = document.createElement("div");
+      overlay.style.cssText = `
         position: fixed;
         top: 0;
         left: 0;
@@ -77,19 +121,33 @@ class SecurityManager {
         justify-content: center;
         font-family: Arial, sans-serif;
         z-index: 999999;
-      ">
+      `;
+
+      overlay.innerHTML = `
         <div style="text-align: center;">
           <h1>🔒 Accès Restreint</h1>
           <p>Les outils de développement ne sont pas autorisés.</p>
           <p>Fermez les DevTools pour continuer.</p>
+          <p style="font-size: 12px; margin-top: 20px; opacity: 0.7;">
+            Rechargement automatique dans 3 secondes...
+          </p>
         </div>
-      </div>
-    `;
+      `;
 
-    // Bloquer l'exécution
-    setTimeout(() => {
-      location.reload();
-    }, 3000);
+      document.body.appendChild(overlay);
+
+      // Bloquer l'exécution
+      setTimeout(() => {
+        try {
+          location.reload();
+        } catch (error) {
+          // Si le reload échoue, retirer l'overlay
+          overlay.remove();
+        }
+      }, 3000);
+    } catch (error) {
+      console.warn("Erreur lors de la détection des DevTools:", error);
+    }
   }
 
   private protectRightClick() {
@@ -99,86 +157,108 @@ class SecurityManager {
       return false;
     };
 
-    document.addEventListener("contextmenu", handleContextMenu);
+    this.addEventListenerSafe(document, "contextmenu", handleContextMenu);
   }
 
   private protectKeyboardShortcuts() {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U, Ctrl+S, Ctrl+Shift+C
-      if (
-        e.key === "F12" ||
-        (e.ctrlKey &&
-          e.shiftKey &&
-          (e.key === "I" || e.key === "J" || e.key === "C")) ||
-        (e.ctrlKey && (e.key === "u" || e.key === "U")) ||
-        (e.ctrlKey && (e.key === "s" || e.key === "S")) ||
-        (e.ctrlKey && (e.key === "a" || e.key === "A")) ||
-        (e.ctrlKey && (e.key === "p" || e.key === "P"))
-      ) {
-        // Exception pour Ctrl+F1 (admin panel)
-        if (e.ctrlKey && e.key === "F1") {
-          return; // Laisser passer pour l'admin panel
-        }
+      try {
+        // F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U, Ctrl+S, Ctrl+Shift+C
+        if (
+          e.key === "F12" ||
+          (e.ctrlKey &&
+            e.shiftKey &&
+            (e.key === "I" || e.key === "J" || e.key === "C")) ||
+          (e.ctrlKey && (e.key === "u" || e.key === "U")) ||
+          (e.ctrlKey && (e.key === "s" || e.key === "S")) ||
+          (e.ctrlKey && (e.key === "a" || e.key === "A")) ||
+          (e.ctrlKey && (e.key === "p" || e.key === "P"))
+        ) {
+          // Exception pour Ctrl+F1 (admin panel)
+          if (e.ctrlKey && e.key === "F1") {
+            return; // Laisser passer pour l'admin panel
+          }
 
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+      } catch (error) {
+        // Ignorer les erreurs de gestion des touches
       }
     };
 
-    document.addEventListener("keydown", handleKeyDown);
+    this.addEventListenerSafe(document, "keydown", handleKeyDown);
   }
 
   private protectTextSelection() {
-    const handleSelectStart = (e: Event) => {
-      e.preventDefault();
-      return false;
-    };
+    try {
+      const handleSelectStart = (e: Event) => {
+        e.preventDefault();
+        return false;
+      };
 
-    const handleDragStart = (e: Event) => {
-      e.preventDefault();
-      return false;
-    };
+      const handleDragStart = (e: Event) => {
+        e.preventDefault();
+        return false;
+      };
 
-    document.addEventListener("selectstart", handleSelectStart);
-    document.addEventListener("dragstart", handleDragStart);
+      this.addEventListenerSafe(document, "selectstart", handleSelectStart);
+      this.addEventListenerSafe(document, "dragstart", handleDragStart);
 
-    // CSS pour désactiver la sélection
-    const style = document.createElement("style");
-    style.textContent = `
-      * {
-        -webkit-user-select: none !important;
-        -moz-user-select: none !important;
-        -ms-user-select: none !important;
-        user-select: none !important;
-        -webkit-touch-callout: none !important;
-        -webkit-tap-highlight-color: transparent !important;
+      // CSS pour désactiver la sélection
+      const style = document.createElement("style");
+      style.id = "nothingai-security-styles";
+      style.textContent = `
+        * {
+          -webkit-user-select: none !important;
+          -moz-user-select: none !important;
+          -ms-user-select: none !important;
+          user-select: none !important;
+          -webkit-touch-callout: none !important;
+          -webkit-tap-highlight-color: transparent !important;
+        }
+        
+        input, textarea, [contenteditable="true"] {
+          -webkit-user-select: text !important;
+          -moz-user-select: text !important;
+          -ms-user-select: text !important;
+          user-select: text !important;
+        }
+      `;
+
+      if (!document.head.querySelector("#nothingai-security-styles")) {
+        document.head.appendChild(style);
       }
-      
-      input, textarea {
-        -webkit-user-select: text !important;
-        -moz-user-select: text !important;
-        -ms-user-select: text !important;
-        user-select: text !important;
-      }
-    `;
-    document.head.appendChild(style);
+    } catch (error) {
+      console.warn("Erreur lors de la protection de la sélection:", error);
+    }
   }
 
   private startDevToolsDetection() {
-    const devToolsDetector = () => {
-      const before = new Date().getTime();
-      debugger;
-      const after = new Date().getTime();
+    try {
+      const devToolsDetector = () => {
+        try {
+          const before = new Date().getTime();
+          debugger;
+          const after = new Date().getTime();
 
-      if (after - before > 100) {
-        this.onDevToolsDetected();
+          if (after - before > 100) {
+            this.onDevToolsDetected();
+          }
+        } catch (error) {
+          // Ignorer les erreurs du debugger
+        }
+      };
+
+      // Vérification périodique seulement en production
+      if (import.meta.env.PROD) {
+        const interval = setInterval(devToolsDetector, 2000);
+        this.intervals.push(interval);
       }
-    };
-
-    // Vérification périodique
-    const interval = setInterval(devToolsDetector, 1000);
-    this.intervals.push(interval);
+    } catch (error) {
+      console.warn("Erreur lors de la détection des DevTools:", error);
+    }
   }
 
   private protectDragDrop() {
@@ -192,42 +272,119 @@ class SecurityManager {
       e.stopPropagation();
     };
 
-    document.addEventListener("dragover", handleDragOver);
-    document.addEventListener("drop", handleDrop);
+    this.addEventListenerSafe(document, "dragover", handleDragOver);
+    this.addEventListenerSafe(document, "drop", handleDrop);
   }
 
   private protectPrint() {
-    const handleBeforePrint = (e: Event) => {
-      e.preventDefault();
-      return false;
-    };
+    try {
+      const handleBeforePrint = (e: Event) => {
+        e.preventDefault();
+        return false;
+      };
 
-    window.addEventListener("beforeprint", handleBeforePrint);
+      this.addEventListenerSafe(window, "beforeprint", handleBeforePrint);
 
-    // Redéfinir window.print
-    window.print = () => {
-      console.log("Impression désactivée");
-    };
+      // Redéfinir window.print avec protection
+      const originalPrint = window.print;
+      window.print = function () {
+        console.warn("Impression désactivée pour des raisons de sécurité");
+        return false;
+      };
+
+      // Sauvegarder la référence originale
+      (window as any).__originalPrint = originalPrint;
+    } catch (error) {
+      console.warn("Erreur lors de la protection de l'impression:", error);
+    }
   }
 
   public disable() {
-    this._protectionEnabled = false;
-    this.intervals.forEach((interval) => clearInterval(interval));
-    this.intervals = [];
+    try {
+      this._protectionEnabled = false;
+
+      // Nettoyer les intervals
+      this.intervals.forEach((interval) => {
+        try {
+          clearInterval(interval);
+        } catch (error) {
+          console.warn("Erreur lors du nettoyage d'un interval:", error);
+        }
+      });
+      this.intervals = [];
+
+      // Nettoyer les event listeners
+      this.eventListeners.forEach(({ element, event, handler }) => {
+        try {
+          element.removeEventListener(event, handler);
+        } catch (error) {
+          console.warn(
+            `Erreur lors de la suppression de l'event listener ${event}:`,
+            error,
+          );
+        }
+      });
+      this.eventListeners = [];
+
+      // Retirer les styles de sécurité
+      const securityStyles = document.head.querySelector(
+        "#nothingai-security-styles",
+      );
+      if (securityStyles) {
+        securityStyles.remove();
+      }
+
+      // Restaurer window.print si possible
+      if ((window as any).__originalPrint) {
+        window.print = (window as any).__originalPrint;
+      }
+    } catch (error) {
+      console.warn("Erreur lors de la désactivation de la sécurité:", error);
+    }
   }
 
   public enable() {
-    this._protectionEnabled = true;
-    this.initProtection();
+    try {
+      this._protectionEnabled = true;
+      this.initProtection();
+    } catch (error) {
+      console.warn("Erreur lors de l'activation de la sécurité:", error);
+    }
   }
 
   public get protectionEnabled(): boolean {
     return this._protectionEnabled;
   }
+
+  public getStatus() {
+    return {
+      enabled: this._protectionEnabled,
+      activeIntervals: this.intervals.length,
+      activeListeners: this.eventListeners.length,
+      environment: import.meta.env.MODE,
+    };
+  }
 }
 
-// Instance globale
-export const securityManager = new SecurityManager();
+// Instance globale avec gestion d'erreur
+let securityManager: SecurityManager;
 
-// Ne pas freezer l'objet pour permettre les modifications
-// Object.freeze(securityManager); // <-- Retiré pour éviter l'erreur
+try {
+  securityManager = new SecurityManager();
+} catch (error) {
+  console.warn("Erreur lors de la création du SecurityManager:", error);
+  // Créer un manager de fallback sans protection
+  securityManager = {
+    disable: () => {},
+    enable: () => {},
+    protectionEnabled: false,
+    getStatus: () => ({
+      enabled: false,
+      activeIntervals: 0,
+      activeListeners: 0,
+      environment: import.meta.env.MODE,
+    }),
+  } as any;
+}
+
+export { securityManager };
