@@ -52,6 +52,7 @@ import { useChat } from "@/hooks/use-chat";
 import ChatMessageComponent from "@/components/ui/chat-message";
 import ImageUploadModal from "@/components/ui/image-upload-modal";
 import ImageGenerationModal from "@/components/ui/image-generation-modal";
+import GeneratedImagesDisplay from "@/components/ui/generated-images-display";
 import ConversationSidebar from "@/components/ui/conversation-sidebar";
 import {
   NothingAIWordmark,
@@ -278,6 +279,13 @@ const Index = () => {
                         <ExternalLink className="w-3 h-3 ml-auto" />
                       </Button>
                     </Link>
+
+                    {/* Affichage des images générées */}
+                    {imageGeneration.generatedImages.length > 0 && (
+                      <div className="mt-4 px-2">
+                        <GeneratedImagesDisplay />
+                      </div>
+                    )}
                   </div>
                   <ConversationSidebar
                     conversations={conversations}
