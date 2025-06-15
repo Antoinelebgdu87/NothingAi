@@ -10,7 +10,7 @@ import Settings from "./pages/Settings";
 import GeneratedImages from "./pages/GeneratedImages";
 import NotFound from "./pages/NotFound";
 import FirebaseLicenseGate from "./components/ui/firebase-license-gate";
-import AdminPanel from "./components/ui/admin-panel";
+import FirebaseAdminPanel from "./components/ui/firebase-admin-panel";
 import { firebaseLicenseManager } from "./lib/firebase-license-manager";
 import { securityManager } from "./lib/security";
 
@@ -108,7 +108,7 @@ const App = () => {
           {!hasValidLicense ? (
             <>
               <FirebaseLicenseGate onLicenseValid={handleLicenseValid} />
-              <AdminPanel
+              <FirebaseAdminPanel
                 open={showAdminPanel}
                 onClose={() => setShowAdminPanel(false)}
               />
@@ -121,7 +121,7 @@ const App = () => {
                 <Route path="/images" element={<GeneratedImages />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
-              <AdminPanel
+              <FirebaseAdminPanel
                 open={showAdminPanel}
                 onClose={() => setShowAdminPanel(false)}
               />
