@@ -514,9 +514,31 @@ const FirebaseAdminPanel = ({ open, onClose }: FirebaseAdminPanelProps) => {
                               >
                                 {license.isActive ? "Active" : "Inactive"}
                               </Badge>
-                              {new Date() > license.expiresAt.toDate() && (
-                                <Badge variant="destructive">Expirée</Badge>
-                              )}
+                              {(() => {
+                                try {
+                                  if (license.expiresAt) {
+                                    const expiresAt = license.expiresAt.toDate
+                                      ? license.expiresAt.toDate()
+                                      : new Date(license.expiresAt);
+                                    if (
+                                      !isNaN(expiresAt.getTime()) &&
+                                      new Date() > expiresAt
+                                    ) {
+                                      return (
+                                        <Badge variant="destructive">
+                                          Expirée
+                                        </Badge>
+                                      );
+                                    }
+                                  }
+                                } catch (error) {
+                                  console.warn(
+                                    "Erreur vérification expiration:",
+                                    error,
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
                             <div className="text-sm text-muted-foreground">
                               <div>
