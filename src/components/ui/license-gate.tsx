@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import { licenseManager } from "@/lib/license-manager";
 import { toast } from "sonner";
-import { NothingAIWordmark } from "./nothingai-logo";
 
 interface LicenseGateProps {
   onLicenseValid: () => void;
@@ -75,14 +74,10 @@ const LicenseGate = ({ onLicenseValid }: LicenseGateProps) => {
 
       <Card className="w-full max-w-md relative z-10 bg-card/95 backdrop-blur-sm border-border/50">
         <CardHeader className="text-center space-y-4">
-          <div className="mx-auto">
-            <NothingAIWordmark size="lg" />
-          </div>
-
           <div className="space-y-2">
             <CardTitle className="flex items-center justify-center gap-2 text-2xl">
               <Shield className="w-6 h-6 text-primary" />
-              Accès Protégé
+              NothingAI - Accès Protégé
             </CardTitle>
             <CardDescription>
               Une license valide est requise pour accéder à NothingAI
