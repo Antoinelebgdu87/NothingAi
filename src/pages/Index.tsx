@@ -237,9 +237,9 @@ const Index = () => {
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-80 p-0">
-          <div className="p-4 border-b">
-            <h1 className="text-xl font-bold">NothingAI</h1>
-          </div>
+                  <div className="p-4 border-b">
+                    <h1 className="text-xl font-bold">NothingAI</h1>
+                  </div>
                   <div className="p-4 space-y-2">
                     <Button
                       variant="ghost"
@@ -315,13 +315,6 @@ const Index = () => {
                     stats={getStats()}
                     className="border-0"
                   />
-                </SheetContent>
-              </Sheet>
-
-              {/* Logo for mobile */}
-              <div className="lg:hidden">
-                <h1 className="text-lg font-bold">NothingAI</h1>
-              </div>
                 </SheetContent>
               </Sheet>
 
@@ -542,7 +535,7 @@ const Index = () => {
                       Relâchez pour analyser vos images
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      JPG, PNG, GIF, WebP jusqu'à 10MB
+                      JPG, PNG, GIF, WebP jusqu'�� 10MB
                     </p>
                   </div>
                 </div>
