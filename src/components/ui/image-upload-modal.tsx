@@ -148,7 +148,7 @@ const ImageUploadModal = ({
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-medium flex items-center">
                   <ImageIcon className="w-4 h-4 mr-2" />
-                  Images sélectionnées ({images.length})
+                  Images sélectionnées ({images?.length || 0})
                 </h4>
                 <Button
                   variant="ghost"
