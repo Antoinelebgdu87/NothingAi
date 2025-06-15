@@ -24,7 +24,7 @@ import {
   Monitor,
   Smartphone,
   Square,
-  Rectangle,
+  RectangleHorizontal,
   Image as ImageIcon,
 } from "lucide-react";
 
@@ -68,7 +68,7 @@ const IMAGE_FORMATS: ImageFormat[] = [
     width: 1200,
     height: 630,
     aspectRatio: "16:9",
-    icon: <Rectangle className="w-4 h-4" />,
+    icon: <RectangleHorizontal className="w-4 h-4" />,
     category: "social",
   },
   {
@@ -422,7 +422,7 @@ const ImageFormatSelector = ({
                 {/* Impression */}
                 <div>
                   <h4 className="text-xs font-medium mb-2 flex items-center gap-2">
-                    <Rectangle className="w-3 h-3" />
+                    <RectangleHorizontal className="w-3 h-3" />
                     Impression
                   </h4>
                   <div className="grid grid-cols-1 gap-2">
