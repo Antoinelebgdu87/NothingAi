@@ -26,6 +26,7 @@ import {
   Square,
   RectangleHorizontal,
   Image as ImageIcon,
+  Sparkles,
 } from "lucide-react";
 
 interface ImageFormat {
