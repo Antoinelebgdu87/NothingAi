@@ -177,7 +177,7 @@ const Index = () => {
         {/* Sidebar Header */}
         <div className="p-4 border-b border-border/30">
           <div className="flex items-center justify-between mb-4">
-            <NothingAIWordmark size="sm" />
+            <div className="font-bold text-xl">NothingAI</div>
             <Button
               variant="outline"
               size="sm"
@@ -535,7 +535,7 @@ const Index = () => {
                       Relâchez pour analyser vos images
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      JPG, PNG, GIF, WebP jusqu'�� 10MB
+                      JPG, PNG, GIF, WebP jusqu'à 10MB
                     </p>
                   </div>
                 </div>
