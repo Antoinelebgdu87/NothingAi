@@ -31,44 +31,48 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Version ULTRA SIMPLE pour éviter les blocages
-    console.log("🚀 Démarrage ultra-simple...");
+    console.log("🚀 Démarrage app...");
 
+    // FORCE STOP LOADING après 1 seconde MAXIMUM
+    const forceStop = setTimeout(() => {
+      console.log("⚠️ FORCE STOP LOADING - Redirection vers activation");
+      setIsLoading(false);
+      setHasValidLicense(false);
+    }, 1000);
+
+    // Vérification ultra-rapide
     const quickCheck = () => {
       try {
-        // Vérification locale TRÈS basique et rapide
         const localLicense = localStorage.getItem(
           "nothingai_user_license_firebase",
         );
-        console.log("📋 License locale trouvée:", !!localLicense);
+        console.log("📋 License locale:", !!localLicense);
 
-        // Si license trouvée localement, on fait confiance
-        if (localLicense && localLicense.length > 5) {
+        if (localLicense) {
           setHasValidLicense(true);
-          console.log("✅ License locale acceptée");
+          console.log("✅ License trouvée");
         } else {
           setHasValidLicense(false);
-          console.log("❌ Aucune license locale");
+          console.log("❌ Pas de license");
         }
       } catch (error) {
-        console.error("⚠️ Erreur check license:", error);
+        console.error("⚠️ Erreur check:", error);
         setHasValidLicense(false);
       }
 
-      // TOUJOURS arrêter le loading après 1 seconde max
+      // Arrêter le loading
       setIsLoading(false);
-      console.log("✅ Loading terminé");
+      clearTimeout(forceStop);
+      console.log("✅ Loading arrêté");
     };
 
-    // Timeout très court pour éviter les blocages
-    setTimeout(quickCheck, 800);
+    // Vérification après 500ms
+    setTimeout(quickCheck, 500);
 
-    // Timeout de sécurité absolu
-    setTimeout(() => {
-      console.log("⚠️ Timeout sécurité - Force stop loading");
-      setIsLoading(false);
-      setHasValidLicense(false);
-    }, 2000);
+    // Cleanup
+    return () => {
+      clearTimeout(forceStop);
+    };
   }, []);
 
   useEffect(() => {
@@ -85,7 +89,14 @@ const App = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Écran de chargement SIMPLE
+  console.log(
+    "🔄 App render - Loading:",
+    isLoading,
+    "HasLicense:",
+    hasValidLicense,
+  );
+
+  // Écran de chargement très court
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
@@ -116,22 +127,21 @@ const App = () => {
             />
 
             {!hasValidLicense ? (
-              // PAS DE LICENSE → PAGE D'ACTIVATION (TOUJOURS accessible)
+              // PAS DE LICENSE → PAGE D'ACTIVATION
               <>
                 <FirebaseLicenseGate
                   onLicenseValid={() => {
-                    console.log("🎉 License validée - Redirection app");
+                    console.log("🎉 License validée !");
                     setHasValidLicense(true);
                   }}
                 />
-                {/* Panel Admin accessible même sans license */}
                 <FirebaseAdminPanel
                   open={showAdminPanel}
                   onClose={() => setShowAdminPanel(false)}
                 />
               </>
             ) : (
-              // LICENSE VALIDE → APPLICATION COMPLÈTE
+              // LICENSE VALIDE → APPLICATION
               <BrowserRouter>
                 <Routes>
                   <Route path="/" element={<Index />} />
