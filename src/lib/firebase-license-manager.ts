@@ -157,6 +157,8 @@ class FirebaseLicenseManager {
     license?: FirebaseLicense;
   }> {
     try {
+      console.log("🔍 Recherche de la license dans Firebase:", licenseKey);
+
       // Rechercher la license par clé
       const licenseQuery = query(
         collection(db, "licenses"),
@@ -165,8 +167,14 @@ class FirebaseLicenseManager {
       );
 
       const querySnapshot = await getDocs(licenseQuery);
+      console.log(
+        "📄 Résultats de la requête Firebase:",
+        querySnapshot.size,
+        "document(s) trouvé(s)",
+      );
 
       if (querySnapshot.empty) {
+        console.log("❌ Aucune license trouvée avec cette clé");
         return { valid: false, message: "License invalide" };
       }
 
