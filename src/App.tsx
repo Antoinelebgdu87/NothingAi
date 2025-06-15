@@ -11,7 +11,7 @@ import GeneratedImages from "./pages/GeneratedImages";
 import NotFound from "./pages/NotFound";
 import FirebaseLicenseGate from "./components/ui/firebase-license-gate";
 import FirebaseAdminPanel from "./components/ui/firebase-admin-panel";
-import { firebaseLicenseManager } from "./lib/firebase-license-manager";
+import { hybridLicenseManager } from "./lib/hybrid-license-manager";
 import { securityManager } from "./lib/security";
 
 const queryClient = new QueryClient({
@@ -36,35 +36,27 @@ const App = () => {
     // Initialiser la sécurité
     securityManager.enable();
 
-    // Vérifier la license existante avec Firebase
+    // Vérifier la license existante avec le gestionnaire hybride
     const checkLicense = async () => {
       try {
         console.log("🔍 Vérification de la license existante...");
 
-        // Test de connexion Firebase d'abord
-        const isConnected = await firebaseLicenseManager.testConnection();
-        console.log("🌐 Connexion Firebase:", isConnected);
+        // Test de connexion (Firebase ou fallback)
+        const isConnected = await hybridLicenseManager.testConnection();
+        const status = hybridLicenseManager.getStatus();
+        console.log("🌐 Système de license:", status.mode, "- Connecté:", isConnected);
 
-        if (!isConnected) {
-          console.warn("❌ Firebase non accessible, démarrage sans license");
-          setHasValidLicense(false);
-          setIsLoading(false);
-          return;
-        }
-
-        const hasLicense = await firebaseLicenseManager.hasValidLicense();
+        const hasLicense = await hybridLicenseManager.hasValidLicense();
         console.log("📋 License existante trouvée:", hasLicense);
         setHasValidLicense(hasLicense);
       } catch (error) {
-        console.error(
-          "❌ Erreur lors de la vérification de la license:",
-          error,
-        );
+        console.error("❌ Erreur lors de la vérification de la license:", error);
         console.log("🔄 Démarrage en mode license requise");
         setHasValidLicense(false);
       } finally {
         setIsLoading(false);
       }
+    };
     };
 
     // Délai pour l'effet de chargement puis vérification
