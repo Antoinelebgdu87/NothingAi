@@ -8,6 +8,8 @@ import {
 } from "@/lib/openrouter";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useImageAnalysis } from "@/hooks/use-image-analysis";
+import { useImageGeneration } from "@/hooks/use-image-generation";
+import { ImageGenerationAPI } from "@/lib/image-generation";
 import { toast } from "sonner";
 
 export interface ChatMessage extends Message {
@@ -16,6 +18,11 @@ export interface ChatMessage extends Message {
   isStreaming?: boolean;
   model?: string;
   images?: Array<{ url: string; name: string }>;
+  generatedImage?: {
+    url: string;
+    prompt: string;
+    model: string;
+  };
 }
 
 export interface ChatSettings {
@@ -30,14 +37,14 @@ const DEFAULT_SETTINGS: ChatSettings = {
   temperature: 0.7,
   maxTokens: 2048,
   systemMessage:
-    "Tu es NothingAI, un assistant IA français avancé créé pour être utile, inoffensif et honnête. Tu es intelligent, créatif et tu t'efforces de fournir la meilleure assistance possible aux utilisateurs. Tu peux analyser des images et fournir des descriptions détaillées. Sois toujours respectueux et professionnel dans tes réponses. Réponds en français.",
+    "Tu es NothingAI, un assistant IA français avancé créé pour être utile, inoffensif et honnête. Tu es intelligent, créatif et tu t'efforces de fournir la meilleure assistance possible aux utilisateurs. Tu peux analyser des images et aussi générer des images sur demande. Quand un utilisateur demande une image (ex: 'génère une image de...', 'crée une photo de...', etc.), tu peux automatiquement générer l'image demandée. Sois toujours respectueux et professionnel dans tes réponses. Réponds en français.",
 };
 
 const DEFAULT_WELCOME_MESSAGE: ChatMessage = {
   id: "welcome",
   role: "assistant",
   content:
-    "👋 Bienvenue sur **NothingAI** ! Je suis votre assistant IA français avancé, alimenté par les modèles de langage les plus récents.\n\nJe peux vous aider avec :\n- ✨ Rédaction créative et brainstorming\n- 🧠 Résolution de problèmes et analyse\n- 💻 Questions de programmation et techniques\n- 📚 Recherche et explications\n- 🖼️ **Analyse d'images** (glissez-déposez vos images !)\n- 🇫🇷 Et bien plus encore !\n\nQue souhaitez-vous explorer aujourd'hui ?",
+    "👋 Bienvenue sur **NothingAI** ! Je suis votre assistant IA français avancé, alimenté par les modèles de langage les plus récents.\n\nJe peux vous aider avec :\n- ✨ Rédaction créative et brainstorming\n- 🧠 Résolution de problèmes et analyse\n- 💻 Questions de programmation et techniques\n- 📚 Recherche et explications\n- 🖼️ **Analyse d'images** (glissez-déposez vos images !)\n- 🎨 **Génération d'images** (dites 'génère une image de...')\n- 🇫🇷 Et bien plus encore !\n\nQue souhaitez-vous explorer aujourd'hui ?",
   timestamp: new Date(),
   model: "system",
 };
@@ -65,6 +72,9 @@ export function useChat() {
 
   // Image analysis integration
   const imageAnalysis = useImageAnalysis();
+
+  // Image generation integration
+  const imageGeneration = useImageGeneration();
 
   // Auto-save messages when they change
   useEffect(() => {
@@ -108,106 +118,166 @@ export function useChat() {
       // Add user message immediately
       setMessages((prev) => [...prev, userMessage]);
 
-      // Prepare messages for API
-      const systemMessage: Message = {
-        role: "system",
-        content: settings.systemMessage,
-      };
+      // Check if this is an image generation request
+      const isImageRequest =
+        imageGeneration.detectImageGenerationIntent(content);
 
-      // Prepare conversation messages
-      const conversationMessages: Message[] = [systemMessage];
+      if (isImageRequest) {
+        // Handle image generation request
+        const assistantMessageId = `assistant-${Date.now()}`;
+        const assistantMessage: ChatMessage = {
+          id: assistantMessageId,
+          role: "assistant",
+          content: "🎨 Je génère votre image, veuillez patienter...",
+          timestamp: new Date(),
+          isStreaming: true,
+          model: "image-generation",
+        };
 
-      // Add previous messages (excluding welcome)
-      const previousMessages = messages
-        .filter((m) => m.role !== "system" && m.id !== "welcome")
-        .map((m) => ({ role: m.role, content: m.content }));
+        setMessages((prev) => [...prev, assistantMessage]);
+        setIsStreaming(true);
 
-      conversationMessages.push(...previousMessages);
+        try {
+          const response = await imageGeneration.generateImageResponse(content);
 
-      // Add current user message
-      if (imageAnalysis.hasImages) {
-        // For vision models, we need to format the message differently
-        const imageContent = await imageAnalysis.getImagesForAPI();
-        conversationMessages.push({
-          role: "user",
-          content: [{ type: "text", text: content }, ...imageContent] as any,
-        });
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMessageId
+                ? {
+                    ...msg,
+                    content: response.text,
+                    isStreaming: false,
+                    generatedImage: response.image
+                      ? {
+                          url: response.image.url,
+                          prompt: response.image.prompt,
+                          model: response.image.model,
+                        }
+                      : undefined,
+                  }
+                : msg,
+            ),
+          );
+          setIsStreaming(false);
+          return;
+        } catch (error) {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMessageId
+                ? {
+                    ...msg,
+                    content:
+                      "Désolé, je n'ai pas pu générer l'image demandée. Veuillez réessayer.",
+                    isStreaming: false,
+                  }
+                : msg,
+            ),
+          );
+          setIsStreaming(false);
+          throw error;
+        }
       } else {
-        conversationMessages.push({ role: "user", content });
+        // Handle regular chat message
+        const systemMessage: Message = {
+          role: "system",
+          content: settings.systemMessage,
+        };
+
+        // Prepare conversation messages
+        const conversationMessages: Message[] = [systemMessage];
+
+        // Add previous messages (excluding welcome)
+        const previousMessages = messages
+          .filter((m) => m.role !== "system" && m.id !== "welcome")
+          .map((m) => ({ role: m.role, content: m.content }));
+
+        conversationMessages.push(...previousMessages);
+
+        // Add current user message
+        if (imageAnalysis.hasImages) {
+          // For vision models, we need to format the message differently
+          const imageContent = await imageAnalysis.getImagesForAPI();
+          conversationMessages.push({
+            role: "user",
+            content: [{ type: "text", text: content }, ...imageContent] as any,
+          });
+        } else {
+          conversationMessages.push({ role: "user", content });
+        }
+
+        // Create assistant message placeholder
+        const assistantMessageId = `assistant-${Date.now()}`;
+        const assistantMessage: ChatMessage = {
+          id: assistantMessageId,
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
+          isStreaming: true,
+          model: settings.model,
+        };
+
+        setMessages((prev) => [...prev, assistantMessage]);
+        setIsStreaming(true);
+
+        let fullResponse = "";
+
+        return new Promise<void>((resolve, reject) => {
+          // Use vision-capable model if images are present
+          const modelToUse = imageAnalysis.hasImages
+            ? "anthropic/claude-3.5-sonnet" // Use vision model for images
+            : settings.model;
+
+          openRouter.createStreamingChatCompletion(
+            conversationMessages,
+            modelToUse,
+            {
+              temperature: settings.temperature,
+              max_tokens: settings.maxTokens,
+              onToken: (token: string) => {
+                fullResponse += token;
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, content: fullResponse }
+                      : msg,
+                  ),
+                );
+              },
+              onComplete: (response: string) => {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? {
+                          ...msg,
+                          content: response,
+                          isStreaming: false,
+                          model: modelToUse,
+                        }
+                      : msg,
+                  ),
+                );
+                setIsStreaming(false);
+
+                // Clear images after successful response
+                if (imageAnalysis.hasImages) {
+                  imageAnalysis.clearAllImages();
+                  toast.success("Images analysées avec succès !");
+                }
+
+                resolve();
+              },
+              onError: (error: Error) => {
+                setMessages((prev) =>
+                  prev.filter((msg) => msg.id !== assistantMessageId),
+                );
+                setIsStreaming(false);
+                toast.error(`Échec de l'envoi du message: ${error.message}`);
+                reject(error);
+              },
+            },
+          );
+        });
       }
-
-      // Create assistant message placeholder
-      const assistantMessageId = `assistant-${Date.now()}`;
-      const assistantMessage: ChatMessage = {
-        id: assistantMessageId,
-        role: "assistant",
-        content: "",
-        timestamp: new Date(),
-        isStreaming: true,
-        model: settings.model,
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-      setIsStreaming(true);
-
-      let fullResponse = "";
-
-      return new Promise<void>((resolve, reject) => {
-        // Use vision-capable model if images are present
-        const modelToUse = imageAnalysis.hasImages
-          ? "anthropic/claude-3.5-sonnet" // Use vision model for images
-          : settings.model;
-
-        openRouter.createStreamingChatCompletion(
-          conversationMessages,
-          modelToUse,
-          {
-            temperature: settings.temperature,
-            max_tokens: settings.maxTokens,
-            onToken: (token: string) => {
-              fullResponse += token;
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === assistantMessageId
-                    ? { ...msg, content: fullResponse }
-                    : msg,
-                ),
-              );
-            },
-            onComplete: (response: string) => {
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === assistantMessageId
-                    ? {
-                        ...msg,
-                        content: response,
-                        isStreaming: false,
-                        model: modelToUse,
-                      }
-                    : msg,
-                ),
-              );
-              setIsStreaming(false);
-
-              // Clear images after successful response
-              if (imageAnalysis.hasImages) {
-                imageAnalysis.clearAllImages();
-                toast.success("Images analysées avec succès !");
-              }
-
-              resolve();
-            },
-            onError: (error: Error) => {
-              setMessages((prev) =>
-                prev.filter((msg) => msg.id !== assistantMessageId),
-              );
-              setIsStreaming(false);
-              toast.error(`Échec de l'envoi du message: ${error.message}`);
-              reject(error);
-            },
-          },
-        );
-      });
     },
   });
 
@@ -338,6 +408,8 @@ export function useChat() {
     clearAllData,
     // Image analysis features
     imageAnalysis,
+    // Image generation features
+    imageGeneration,
   };
 }
 
