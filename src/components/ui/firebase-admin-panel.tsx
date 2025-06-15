@@ -42,10 +42,21 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
-import {
-  firebaseLicenseManager,
-  type FirebaseLicense,
-} from "@/lib/firebase-license-manager";
+import { hybridLicenseManager } from "@/lib/hybrid-license-manager";
+
+// Type unifié pour les licenses (compatible Firebase et Fallback)
+type HybridLicense = {
+  id: string;
+  key: string;
+  usages: number;
+  maxUsages: number;
+  createdAt: any;
+  expiresAt: any;
+  isActive: boolean;
+  usedBy: string[];
+  type: string;
+  metadata?: any;
+};
 import { toast } from "sonner";
 
 interface FirebaseAdminPanelProps {
@@ -58,7 +69,7 @@ const FirebaseAdminPanel = ({ open, onClose }: FirebaseAdminPanelProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [licenses, setLicenses] = useState<FirebaseLicense[]>([]);
+  const [licenses, setLicenses] = useState<HybridLicense[]>([]);
   const [activeTab, setActiveTab] = useState<"licenses" | "stats" | "settings">(
     "licenses",
   );
@@ -93,14 +104,18 @@ const FirebaseAdminPanel = ({ open, onClose }: FirebaseAdminPanelProps) => {
 
   const checkConnection = async () => {
     try {
-      const connected = await firebaseLicenseManager.testConnection();
+      const connected = await hybridLicenseManager.testConnection();
+      const status = hybridLicenseManager.getStatus();
       setIsConnected(connected);
+
       if (!connected) {
-        toast.error("Connexion Firebase indisponible");
+        toast.error(`Service de licenses indisponible (${status.mode})`);
+      } else {
+        toast.success(`Connecté en mode ${status.mode}`);
       }
     } catch (error) {
       setIsConnected(false);
-      toast.error("Erreur de connexion Firebase");
+      toast.error("Erreur de connexion au système de licenses");
     }
   };
 
@@ -110,12 +125,15 @@ const FirebaseAdminPanel = ({ open, onClose }: FirebaseAdminPanelProps) => {
     setIsLoading(true);
     try {
       const [licensesData, statsData] = await Promise.all([
-        firebaseLicenseManager.getAllLicenses(),
-        firebaseLicenseManager.getLicenseStats(),
+        hybridLicenseManager.getAllLicenses(),
+        hybridLicenseManager.getLicenseStats(),
       ]);
 
       setLicenses(licensesData);
       setStats(statsData);
+
+      const status = hybridLicenseManager.getStatus();
+      console.log(`📊 Données chargées en mode ${status.mode}`);
     } catch (error) {
       toast.error("Erreur lors du chargement des données");
       console.error(error);
@@ -173,13 +191,14 @@ const FirebaseAdminPanel = ({ open, onClose }: FirebaseAdminPanelProps) => {
 
     setIsLoading(true);
     try {
-      const license = await firebaseLicenseManager.generateLicense(
+      const license = await hybridLicenseManager.generateLicense(
         maxUsages,
         durationDays,
         type,
       );
       await loadData();
-      toast.success(`License générée: ${license.key}`);
+      const status = hybridLicenseManager.getStatus();
+      toast.success(`License générée (${status.mode}): ${license.key}`);
 
       // Copier automatiquement la clé
       navigator.clipboard.writeText(license.key);
@@ -198,7 +217,7 @@ const FirebaseAdminPanel = ({ open, onClose }: FirebaseAdminPanelProps) => {
 
     setIsLoading(true);
     try {
-      const success = await firebaseLicenseManager.deleteLicense(licenseId);
+      const success = await hybridLicenseManager.deleteLicense(licenseId);
       if (success) {
         await loadData();
         toast.success("License supprimée");
@@ -215,7 +234,7 @@ const FirebaseAdminPanel = ({ open, onClose }: FirebaseAdminPanelProps) => {
   const toggleLicense = async (licenseId: string, isActive: boolean) => {
     setIsLoading(true);
     try {
-      const success = await firebaseLicenseManager.updateLicense(licenseId, {
+      const success = await hybridLicenseManager.updateLicense(licenseId, {
         isActive: !isActive,
       });
       if (success) {
