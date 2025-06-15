@@ -303,7 +303,7 @@ class FirebaseLicenseManager {
         const validation = await Promise.race([
           this.validateLicense(userLicense),
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Timeout")), 5000)
+            setTimeout(() => reject(new Error("Timeout")), 5000),
           ),
         ]);
 
@@ -333,7 +333,6 @@ class FirebaseLicenseManager {
       console.error("❌ Erreur critique vérification license:", error);
       return false;
     }
-  }
   }
 
   // Fonctions d'administration
