@@ -78,10 +78,9 @@ const IMAGE_FORMATS: ImageFormat[] = [
     width: 1500,
     height: 500,
     aspectRatio: "3:1",
-    icon: <Rectangle className="w-4 h-4" />,
+    icon: <RectangleHorizontal className="w-4 h-4" />,
     category: "social",
   },
-  // Web
   {
     id: "banner-web",
     name: "Bannière Web",
@@ -89,7 +88,7 @@ const IMAGE_FORMATS: ImageFormat[] = [
     width: 1920,
     height: 600,
     aspectRatio: "16:5",
-    icon: <Monitor className="w-4 h-4" />,
+    icon: <RectangleHorizontal className="w-4 h-4" />,
     category: "web",
   },
   {
@@ -99,7 +98,7 @@ const IMAGE_FORMATS: ImageFormat[] = [
     width: 1200,
     height: 800,
     aspectRatio: "3:2",
-    icon: <Rectangle className="w-4 h-4" />,
+    icon: <RectangleHorizontal className="w-4 h-4" />,
     category: "web",
   },
   // Impression
@@ -110,7 +109,7 @@ const IMAGE_FORMATS: ImageFormat[] = [
     width: 2480,
     height: 3508,
     aspectRatio: "A4",
-    icon: <Rectangle className="w-4 h-4" />,
+    icon: <RectangleHorizontal className="w-4 h-4" />,
     category: "print",
   },
   {
@@ -120,7 +119,7 @@ const IMAGE_FORMATS: ImageFormat[] = [
     width: 1050,
     height: 600,
     aspectRatio: "7:4",
-    icon: <Rectangle className="w-4 h-4" />,
+    icon: <RectangleHorizontal className="w-4 h-4" />,
     category: "print",
   },
   // Standards
