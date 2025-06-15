@@ -239,10 +239,22 @@ class InstantLicenseManager {
     // 2. Vérifier les clés auto-validantes
     const keyPart = cleanKey.replace("NOTHINGAI-", "");
     if (keyPart.length >= 8) {
-      const licenseData = this.decodeLicenseData(keyPart);
+      // Essayer de décoder avec la clé complète
+      let licenseData = this.decodeLicenseData(cleanKey);
+
+      // Si échec, essayer avec seulement la partie après le préfixe
+      if (!licenseData) {
+        licenseData = this.decodeLicenseData(keyPart);
+      }
 
       if (licenseData) {
-        console.log("🔍 License auto-validante détectée:", licenseData);
+        console.log("🔍 License auto-validante détectée:", {
+          key: cleanKey,
+          data: licenseData,
+          expires: new Date(
+            licenseData.created + licenseData.duration * 24 * 60 * 60 * 1000,
+          ),
+        });
 
         // Vérifier l'expiration
         const now = Date.now();
@@ -250,7 +262,10 @@ class InstantLicenseManager {
           licenseData.created + licenseData.duration * 24 * 60 * 60 * 1000;
 
         if (now > expiresAt) {
-          console.log("❌ License expirée:", new Date(expiresAt));
+          console.log("❌ License expirée:", {
+            now: new Date(now),
+            expires: new Date(expiresAt),
+          });
           return false;
         }
 
@@ -264,7 +279,11 @@ class InstantLicenseManager {
           return false;
         }
 
-        console.log("✅ License auto-validante valide:", cleanKey);
+        console.log("✅ License auto-validante valide:", {
+          key: cleanKey,
+          usage: `${usage.uses}/${licenseData.maxUsages}`,
+          daysLeft: Math.ceil((expiresAt - now) / (24 * 60 * 60 * 1000)),
+        });
         return true;
       }
     }
