@@ -37,19 +37,34 @@ const App = () => {
       console.log("🔍 Vérification simple de la license...");
 
       try {
+        // Test si simpleLicenseManager existe
+        console.log("📦 SimpleLicenseManager:", simpleLicenseManager);
+        console.log(
+          "🔧 Méthode hasValidLicense:",
+          typeof simpleLicenseManager?.hasValidLicense,
+        );
+
         const hasLicense = simpleLicenseManager.hasValidLicense();
         console.log("📋 License trouvée:", hasLicense);
         setHasValidLicense(hasLicense);
       } catch (error) {
         console.error("❌ Erreur vérification:", error);
+        console.error("❌ Stack trace:", error);
         setHasValidLicense(false);
       } finally {
+        console.log("✅ Fin du loading");
         setIsLoading(false);
       }
     };
 
     // Vérification rapide après 500ms
     setTimeout(checkLicense, 500);
+
+    // Timeout de sécurité pour éviter le loading infini
+    setTimeout(() => {
+      console.log("⚠️ Timeout de sécurité - Arrêt forcé du loading");
+      setIsLoading(false);
+    }, 3000);
 
     // Gestionnaire pour Ctrl+F1 (Admin Panel)
     const handleKeyDown = (e: KeyboardEvent) => {
