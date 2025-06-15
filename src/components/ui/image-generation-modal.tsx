@@ -27,6 +27,8 @@ import {
   Wand2,
   Zap,
   Crown,
+  Download,
+  RotateCcw,
 } from "lucide-react";
 import ImageFormatSelector from "./image-format-selector";
 import { LoadingSpinner } from "./loading-spinner";
@@ -50,6 +52,9 @@ const ImageGenerationModal = ({
     isGenerating,
     pollinationsModels,
     huggingFaceModels,
+    generatedImages,
+    downloadImage,
+    regenerateImage,
   } = useImageGeneration();
 
   const [prompt, setPrompt] = useState(initialPrompt);
@@ -59,9 +64,9 @@ const ImageGenerationModal = ({
     format: string;
     quality: string;
   } | null>(null);
-  const [step, setStep] = useState<"format" | "prompt" | "generating">(
-    "format",
-  );
+  const [step, setStep] = useState<
+    "format" | "prompt" | "generating" | "success"
+  >("format");
 
   const handleFormatSelect = (format: {
     width: number;
@@ -82,11 +87,11 @@ const ImageGenerationModal = ({
 
     try {
       setStep("generating");
-      await generateImage(prompt);
-      onOpenChange(false);
-      setStep("format");
-      setPrompt("");
-      setSelectedFormat(null);
+      const result = await generateImage(prompt);
+      if (result) {
+        setStep("success");
+        // Ne pas fermer la modal automatiquement, laisser l'utilisateur voir le résultat
+      }
     } catch (error) {
       setStep("prompt");
     }
@@ -144,6 +149,7 @@ const ImageGenerationModal = ({
               "Choisissez le format et la qualité de votre image"}
             {step === "prompt" && "Décrivez l'image que vous souhaitez créer"}
             {step === "generating" && "Génération de votre image en cours..."}
+            {step === "success" && "Votre image a été générée avec succès !"}
           </DialogDescription>
         </DialogHeader>
 
@@ -357,11 +363,73 @@ const ImageGenerationModal = ({
               </div>
             </div>
           )}
+
+          {step === "success" && (
+            <div className="space-y-6 max-h-[60vh] overflow-y-auto">
+              {/* Affichage de la dernière image générée */}
+              {generatedImages.length > 0 && (
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <h3 className="font-medium text-green-600 mb-2">
+                      ✅ Image générée avec succès !
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Voici votre image créée par l'IA
+                    </p>
+                  </div>
+
+                  <div className="max-w-md mx-auto">
+                    <div className="relative">
+                      <img
+                        src={generatedImages[0].url}
+                        alt={generatedImages[0].prompt}
+                        className="w-full h-auto rounded-lg shadow-lg"
+                        style={{ maxHeight: "300px", objectFit: "contain" }}
+                      />
+                      <div className="absolute top-2 right-2">
+                        <Badge className={providerInfo.badgeColor}>
+                          {providerInfo.icon}
+                          <span className="ml-1">{providerInfo.badge}</span>
+                        </Badge>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                      <p className="text-sm">
+                        <strong>Prompt:</strong> {generatedImages[0].prompt}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {generatedImages[0].width}×{generatedImages[0].height} •{" "}
+                        {generatedImages[0].model}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2 mt-4">
+                      <Button
+                        onClick={() => downloadImage(generatedImages[0])}
+                        className="flex-1"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Télécharger
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => regenerateImage(generatedImages[0])}
+                      >
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        Régénérer
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Actions */}
         <div className="flex justify-between border-t pt-4">
-          {step !== "format" && (
+          {step !== "format" && step !== "success" && (
             <Button
               variant="outline"
               onClick={handleBack}
@@ -408,6 +476,21 @@ const ImageGenerationModal = ({
             >
               Annuler
             </Button>
+          )}
+          {step === "success" && (
+            <div className="flex gap-2 ml-auto">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setStep("format");
+                  setPrompt("");
+                  setSelectedFormat(null);
+                }}
+              >
+                Nouvelle Image
+              </Button>
+              <Button onClick={() => onOpenChange(false)}>Fermer</Button>
+            </div>
           )}
         </div>
       </DialogContent>
