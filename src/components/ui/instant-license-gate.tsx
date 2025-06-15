@@ -180,7 +180,15 @@ const InstantLicenseGate = ({ onLicenseValid }: InstantLicenseGateProps) => {
             </div>
           </div>
 
-          <div className="text-center">
+          <div className="text-center space-y-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={testNewLicense}
+              className="text-xs"
+            >
+              🧪 Test Génération (Debug)
+            </Button>
             <p className="text-xs text-muted-foreground">
               Système de license corrigé - Fonctionne garantit !
               <br />
