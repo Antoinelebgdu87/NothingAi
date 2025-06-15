@@ -37,8 +37,8 @@ const SimpleAdminPanel = ({ open, onClose }: SimpleAdminPanelProps) => {
 
   // Credentials admin simplifiés
   const ADMIN_CREDENTIALS = {
-    email: "admin@nothingai.com",
-    password: "admin123",
+    email: "firefoxytb80@gmail.com",
+    password: "Antoine80@",
   };
 
   useEffect(() => {
@@ -69,7 +69,9 @@ const SimpleAdminPanel = ({ open, onClose }: SimpleAdminPanelProps) => {
       toast.success("Connexion admin réussie !");
       loadData();
     } else {
-      toast.error("Identifiants incorrects (admin@nothingai.com / admin123)");
+      toast.error(
+        "Identifiants incorrects (firefoxytb80@gmail.com / Antoine80@)",
+      );
     }
   };
 
