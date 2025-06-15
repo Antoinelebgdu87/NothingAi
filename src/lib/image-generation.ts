@@ -1,5 +1,8 @@
-// Pollinations.ai - Free image generation API with improved error handling
-const POLLINATIONS_BASE_URL = "https://image.pollinations.ai/prompt";
+// Pollinations.ai - Free image generation API with improved error handling and fallbacks
+const POLLINATIONS_ENDPOINTS = [
+  "https://image.pollinations.ai/prompt",
+  "https://pollinations.ai/p", // Alternative endpoint
+];
 
 export interface ImageGenerationRequest {
   prompt: string;
@@ -29,12 +32,13 @@ export interface GeneratedImage {
 }
 
 export class ImageGenerationAPI {
-  private baseURL: string;
+  private endpoints: string[];
   private retryCount: number = 3;
   private retryDelay: number = 2000;
+  private currentEndpointIndex: number = 0;
 
   constructor() {
-    this.baseURL = POLLINATIONS_BASE_URL;
+    this.endpoints = [...POLLINATIONS_ENDPOINTS];
   }
 
   async generateImage(
@@ -65,92 +69,99 @@ export class ImageGenerationAPI {
     // Clean and enhance the prompt for better results
     const enhancedPrompt = enhance ? this.enhancePrompt(prompt) : prompt;
 
-    // Build URL with proper encoding
-    let imageUrl: string;
-    try {
-      imageUrl = this.buildImageURL(enhancedPrompt, {
-        width,
-        height,
-        model,
-        nologo,
-        private: isPrivate,
-        seed,
-      });
-    } catch (error) {
-      throw new Error("Erreur lors de la construction de l'URL de l'image");
-    }
+    // Try each endpoint with retries
+    let lastError: Error | null = null;
 
-    // Try to generate image with retries
-    for (let attempt = 1; attempt <= this.retryCount; attempt++) {
-      try {
-        console.log(`Tentative ${attempt}/${this.retryCount} - URL:`, imageUrl);
+    for (
+      let endpointIndex = 0;
+      endpointIndex < this.endpoints.length;
+      endpointIndex++
+    ) {
+      const baseURL = this.endpoints[endpointIndex];
 
-        // Test if the image is accessible and not empty
-        const response = await this.fetchWithTimeout(imageUrl, 30000);
-
-        if (!response.ok) {
-          throw new Error(
-            `Erreur HTTP ${response.status}: ${response.statusText}`,
+      for (let attempt = 1; attempt <= this.retryCount; attempt++) {
+        try {
+          console.log(
+            `🎨 Tentative ${attempt}/${this.retryCount} avec endpoint ${endpointIndex + 1}/${this.endpoints.length}`,
           );
-        }
 
-        // Check content type
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.startsWith("image/")) {
-          throw new Error(
-            `Type de contenu invalide: ${contentType || "unknown"}`,
+          // Build URL with proper encoding
+          const imageUrl = this.buildImageURL(baseURL, enhancedPrompt, {
+            width,
+            height,
+            model,
+            nologo,
+            private: isPrivate,
+            seed,
+          });
+
+          console.log(`🔗 URL générée:`, imageUrl);
+
+          // Test if the image is accessible
+          const response = await this.fetchWithTimeout(imageUrl, 45000);
+
+          if (!response.ok) {
+            throw new Error(
+              `Erreur HTTP ${response.status}: ${response.statusText}`,
+            );
+          }
+
+          // Check content type
+          const contentType = response.headers.get("content-type");
+          if (!contentType || !contentType.startsWith("image/")) {
+            throw new Error(
+              `Type de contenu invalide: ${contentType || "unknown"}`,
+            );
+          }
+
+          // Check content length
+          const contentLength = response.headers.get("content-length");
+          if (contentLength && parseInt(contentLength) === 0) {
+            throw new Error("L'image générée est vide (0 octets)");
+          }
+
+          // For Pollinations, we don't need to verify loading as it's a direct URL
+          // Just check if we can fetch it successfully
+
+          const generatedImage: GeneratedImage = {
+            id: `pol-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            url: imageUrl,
+            prompt: enhancedPrompt,
+            timestamp: new Date(),
+            width,
+            height,
+            model,
+          };
+
+          console.log("✅ Image générée avec succès:", generatedImage);
+          this.currentEndpointIndex = endpointIndex; // Remember successful endpoint
+          return generatedImage;
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          console.error(
+            `❌ Tentative ${attempt} échouée (endpoint ${endpointIndex + 1}):`,
+            lastError.message,
           );
+
+          // If it's the last attempt for this endpoint, try next endpoint
+          if (attempt === this.retryCount) {
+            break;
+          }
+
+          // Wait before retry
+          await this.delay(this.retryDelay);
         }
-
-        // Check content length
-        const contentLength = response.headers.get("content-length");
-        if (contentLength && parseInt(contentLength) === 0) {
-          throw new Error("L'image générée est vide (0 octets)");
-        }
-
-        // Verify the image loads correctly
-        await this.verifyImageURL(imageUrl);
-
-        const generatedImage: GeneratedImage = {
-          id: `pol-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          url: imageUrl,
-          prompt: enhancedPrompt,
-          timestamp: new Date(),
-          width,
-          height,
-          model,
-        };
-
-        console.log("Image générée avec succès:", generatedImage);
-        return generatedImage;
-      } catch (error) {
-        console.error(`Tentative ${attempt} échouée:`, error);
-
-        if (attempt === this.retryCount) {
-          throw new Error(
-            `Échec de la génération après ${this.retryCount} tentatives: ${error instanceof Error ? error.message : "Erreur inconnue"}`,
-          );
-        }
-
-        // Wait before retry
-        await this.delay(this.retryDelay);
-
-        // Try with different seed on retry
-        imageUrl = this.buildImageURL(enhancedPrompt, {
-          width,
-          height,
-          model,
-          nologo,
-          private: isPrivate,
-          seed: Math.floor(Math.random() * 1000000),
-        });
       }
     }
 
-    throw new Error("Échec de la génération d'image");
+    // If all endpoints failed, throw the last error
+    throw new Error(
+      `Échec de la génération après avoir essayé tous les endpoints: ${lastError?.message || "Erreur inconnue"}`,
+    );
   }
 
   private buildImageURL(
+    baseURL: string,
     prompt: string,
     options: {
       width: number;
@@ -163,28 +174,53 @@ export class ImageGenerationAPI {
   ): string {
     const { width, height, model, nologo, private: isPrivate, seed } = options;
 
-    // Build URL parameters
-    const params = new URLSearchParams();
-    if (width !== 1024) params.append("width", width.toString());
-    if (height !== 1024) params.append("height", height.toString());
-    if (model !== "flux") params.append("model", model);
-    if (nologo) params.append("nologo", "true");
-    if (isPrivate) params.append("private", "true");
-    if (seed) params.append("seed", seed.toString());
+    // Clean the prompt for URL encoding
+    const cleanPrompt = prompt.trim().replace(/\s+/g, " ").substring(0, 500); // Limit prompt length
 
-    // Encode prompt properly
-    const encodedPrompt = encodeURIComponent(prompt);
+    // For the main endpoint
+    if (baseURL.includes("image.pollinations.ai")) {
+      // Build URL parameters
+      const params = new URLSearchParams();
+      if (width !== 1024) params.append("width", width.toString());
+      if (height !== 1024) params.append("height", height.toString());
+      if (model !== "flux") params.append("model", model);
+      if (nologo) params.append("nologo", "true");
+      if (isPrivate) params.append("private", "true");
+      if (seed) params.append("seed", seed.toString());
 
-    // Construct the full URL
-    const baseUrl = `${this.baseURL}/${encodedPrompt}`;
-    const queryString = params.toString();
+      // Encode prompt properly
+      const encodedPrompt = encodeURIComponent(cleanPrompt);
 
-    return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+      // Construct the full URL
+      const fullURL = `${baseURL}/${encodedPrompt}`;
+      const queryString = params.toString();
+
+      return queryString ? `${fullURL}?${queryString}` : fullURL;
+    }
+
+    // For alternative endpoint
+    else if (baseURL.includes("pollinations.ai/p")) {
+      const encodedPrompt = encodeURIComponent(cleanPrompt);
+      const params = new URLSearchParams({
+        prompt: cleanPrompt,
+        width: width.toString(),
+        height: height.toString(),
+        model: model,
+      });
+
+      if (nologo) params.append("nologo", "true");
+      if (seed) params.append("seed", seed.toString());
+
+      return `${baseURL}?${params.toString()}`;
+    }
+
+    // Fallback
+    return `${baseURL}/${encodeURIComponent(cleanPrompt)}?width=${width}&height=${height}`;
   }
 
   private async fetchWithTimeout(
     url: string,
-    timeout: number = 30000,
+    timeout: number = 45000,
   ): Promise<Response> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -195,7 +231,11 @@ export class ImageGenerationAPI {
         signal: controller.signal,
         headers: {
           "User-Agent": "NothingAI/1.0",
+          Accept: "image/*",
+          "Cache-Control": "no-cache",
         },
+        mode: "cors",
+        cache: "no-cache",
       });
       clearTimeout(timeoutId);
       return response;
@@ -204,34 +244,19 @@ export class ImageGenerationAPI {
       if (error instanceof Error && error.name === "AbortError") {
         throw new Error("Timeout: La génération d'image a pris trop de temps");
       }
+
+      // Handle specific network errors
+      if (
+        error instanceof TypeError &&
+        error.message.includes("Failed to fetch")
+      ) {
+        throw new Error(
+          "Problème de connexion réseau. Vérifiez votre connexion internet.",
+        );
+      }
+
       throw error;
     }
-  }
-
-  private async verifyImageURL(url: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-
-      img.onload = () => {
-        if (img.naturalWidth === 0 || img.naturalHeight === 0) {
-          reject(new Error("L'image générée est invalide"));
-        } else {
-          resolve();
-        }
-      };
-
-      img.onerror = () => {
-        reject(new Error("Impossible de charger l'image générée"));
-      };
-
-      // Set timeout for image loading
-      setTimeout(() => {
-        reject(new Error("Timeout lors du chargement de l'image"));
-      }, 15000);
-
-      img.src = url;
-    });
   }
 
   private delay(ms: number): Promise<void> {
@@ -266,6 +291,32 @@ export class ImageGenerationAPI {
       qualityEnhancers[Math.floor(Math.random() * qualityEnhancers.length)];
 
     return `${cleanPrompt}, ${randomEnhancer}`;
+  }
+
+  // Health check for endpoints
+  async checkEndpointHealth(): Promise<
+    { endpoint: string; healthy: boolean }[]
+  > {
+    const results = [];
+
+    for (const endpoint of this.endpoints) {
+      try {
+        const testUrl = this.buildImageURL(endpoint, "test", {
+          width: 512,
+          height: 512,
+          model: "flux",
+          nologo: true,
+          private: false,
+        });
+
+        const response = await this.fetchWithTimeout(testUrl, 10000);
+        results.push({ endpoint, healthy: response.ok });
+      } catch (error) {
+        results.push({ endpoint, healthy: false });
+      }
+    }
+
+    return results;
   }
 
   // Predefined image styles for quick access
