@@ -463,13 +463,29 @@ class FirebaseLicenseManager {
         return false;
       }
 
-      // Test simple de lecture
-      const testQuery = query(collection(db, "licenses"), limit(1));
-      const result = await getDocs(testQuery);
+      // Test simple de lecture avec timeout
+      const testPromise = getDocs(query(collection(db, "licenses"), limit(1)));
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Timeout de connexion Firebase")),
+          8000,
+        ),
+      );
+
+      const result = (await Promise.race([testPromise, timeoutPromise])) as any;
       console.log("✅ Connexion Firebase réussie, documents:", result.size);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Test de connexion Firebase échoué:", error);
+
+      // Log des détails de l'erreur pour le debug
+      if (error.code) {
+        console.error("Code d'erreur Firebase:", error.code);
+      }
+      if (error.message?.includes("Failed to fetch")) {
+        console.error("🌐 Problème de connectivité réseau vers Firebase");
+      }
+
       return false;
     }
   }
