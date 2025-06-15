@@ -366,14 +366,11 @@ const Index = () => {
                           <AlertDialogAction
                             className="bg-red-600 hover:bg-red-700"
                             onClick={() => {
-                              // Supprimer toutes les données du compte
-                              simpleLicenseManager.clearUserLicense();
-                              localStorage.clear();
-                              sessionStorage.clear();
+                              // Supprimer complètement le compte
+                              simpleLicenseManager.deleteAccount();
 
-                              toast.success("Compte supprimé avec succès", {
-                                description:
-                                  "Vous allez être redirigé vers l'écran de license",
+                              toast.success("Compte supprimé avec succès !", {
+                                description: "Redirection vers l'écran de license..."
                               });
 
                               // Recharger la page pour retourner à l'écran de license
