@@ -172,6 +172,32 @@ class SimpleLicenseManager {
     console.log("🔌 Test connexion système local: OK");
     return true;
   }
+
+  // Supprimer complètement le compte et réinitialiser
+  public deleteAccount(): void {
+    try {
+      // Supprimer la license de l'utilisateur
+      this.clearUserLicense();
+
+      // Supprimer toutes les données de l'application
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("nothingai")) {
+          keysToRemove.push(key);
+        }
+      }
+
+      keysToRemove.forEach((key) => {
+        localStorage.removeItem(key);
+      });
+
+      console.log("🗑️ Compte supprimé - Toutes les données effacées");
+      console.log("🔄 Retour à l'écran de license requis");
+    } catch (error) {
+      console.error("⚠️ Erreur lors de la suppression du compte:", error);
+    }
+  }
 }
 
 export const simpleLicenseManager = new SimpleLicenseManager();
