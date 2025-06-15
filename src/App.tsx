@@ -34,21 +34,25 @@ const App = () => {
     // Version directe et simple - pas de complications
     console.log("🚀 Démarrage simple de l'application...");
 
-    const checkLicense = () => {
+    const checkLicense = async () => {
       try {
-        // Vérification locale simple et rapide
-        const localLicense = localStorage.getItem(
-          "nothingai_user_license_firebase",
-        );
-        console.log("📋 License locale:", localLicense ? "Trouvée" : "Aucune");
+        console.log("🔍 Vérification des licenses...");
 
-        // Si license trouvée, on active l'app
-        if (localLicense && localLicense.trim()) {
-          setHasValidLicense(true);
-          console.log("✅ License valide trouvée");
+        // Import du manager Firebase
+        const { firebaseLicenseManager } = await import(
+          "./lib/firebase-license-manager"
+        );
+
+        // Vérification asynchrone avec Firebase
+        const hasValidLicense = await firebaseLicenseManager.hasValidLicense();
+        console.log("📋 License valide:", hasValidLicense);
+
+        setHasValidLicense(hasValidLicense);
+
+        if (hasValidLicense) {
+          console.log("✅ License valide - Accès à l'application");
         } else {
-          setHasValidLicense(false);
-          console.log("❌ Aucune license - Redirection vers activation");
+          console.log("❌ Aucune license valide - Page d'activation");
         }
       } catch (error) {
         console.error("⚠️ Erreur vérification license:", error);
@@ -57,7 +61,7 @@ const App = () => {
 
       // Arrêter le loading dans tous les cas
       setIsLoading(false);
-      console.log("✅ Application initialisée (simple)");
+      console.log("✅ Application initialisée");
     };
 
     // Petit délai pour l'effet visuel puis vérification directe
