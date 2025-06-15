@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Copy, RotateCcw, User, Sparkles } from "lucide-react";
+import { Copy, RotateCcw, User, Sparkles, Check } from "lucide-react";
 import { toast } from "sonner";
 import { TypingIndicator } from "./loading-spinner";
 import type { ChatMessage } from "@/hooks/use-chat";
@@ -27,29 +27,31 @@ const ChatMessageComponent = ({
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(message.content);
-      toast.success("Message copied to clipboard!");
+      toast.success("Message copié !");
     } catch (error) {
-      toast.error("Failed to copy message");
+      toast.error("Échec de la copie");
     }
   };
 
   const formatContent = (content: string) => {
-    // Simple markdown-like formatting
+    // Enhanced markdown formatting
     return content
       .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
       .replace(/\*(.*?)\*/g, "<em>$1</em>")
       .replace(
         /`(.*?)`/g,
-        '<code class="px-1 py-0.5 bg-muted rounded text-sm font-mono">$1</code>',
+        '<code class="px-2 py-1 bg-muted/50 rounded-md text-sm font-mono border">$1</code>',
       )
-      .replace(/\n/g, "<br />");
+      .replace(/\n\n/g, "</p><p>")
+      .replace(/\n/g, "<br />")
+      .replace(/^(.*)$/, "<p>$1</p>");
   };
 
   if (message.isStreaming && !message.content) {
     return (
-      <div className={cn("flex items-start space-x-3 py-6", className)}>
-        <Avatar className="w-8 h-8 border-2 border-primary/20">
-          <AvatarFallback className="bg-gradient-to-br from-primary to-blue-600 text-primary-foreground">
+      <div className={cn("flex items-start space-x-4 py-6 px-6", className)}>
+        <Avatar className="w-8 h-8 border border-border/50">
+          <AvatarFallback className="bg-gradient-to-br from-primary to-emerald-600 text-white">
             <Sparkles className="w-4 h-4" />
           </AvatarFallback>
         </Avatar>
@@ -63,23 +65,17 @@ const ChatMessageComponent = ({
   return (
     <div
       className={cn(
-        "group flex items-start space-x-3 py-6 px-4 hover:bg-muted/20 transition-colors rounded-lg",
-        isUser && "flex-row-reverse space-x-reverse",
+        "group flex items-start space-x-4 py-6 px-6 hover:bg-muted/5 transition-colors fade-in",
         className,
       )}
     >
       {/* Avatar */}
-      <Avatar
-        className={cn(
-          "w-8 h-8 border-2 shrink-0",
-          isUser ? "border-blue-500/20" : "border-primary/20",
-        )}
-      >
+      <Avatar className="w-8 h-8 border border-border/50 shrink-0">
         <AvatarFallback
           className={cn(
             isUser
-              ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white"
-              : "bg-gradient-to-br from-primary to-blue-600 text-primary-foreground",
+              ? "bg-gradient-to-br from-professional-600 to-professional-700 text-white"
+              : "bg-gradient-to-br from-primary to-emerald-600 text-white",
           )}
         >
           {isUser ? (
@@ -91,19 +87,17 @@ const ChatMessageComponent = ({
       </Avatar>
 
       {/* Message Content */}
-      <div className={cn("flex-1 space-y-2 min-w-0", isUser && "text-right")}>
+      <div className="flex-1 space-y-3 min-w-0">
         {/* Message Header */}
-        <div
-          className={cn(
-            "flex items-center space-x-2",
-            isUser && "justify-end flex-row-reverse space-x-reverse",
-          )}
-        >
-          <span className="text-sm font-medium">
-            {isUser ? "You" : "NothingAI"}
+        <div className="flex items-center space-x-3">
+          <span className="text-sm font-semibold text-foreground">
+            {isUser ? "Vous" : "NothingAI"}
           </span>
           {message.model && !isUser && (
-            <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+            <Badge
+              variant="secondary"
+              className="text-xs px-2 py-0.5 pro-badge"
+            >
               {message.model
                 .split("/")
                 .pop()
@@ -112,56 +106,70 @@ const ChatMessageComponent = ({
             </Badge>
           )}
           {message.isStreaming && (
-            <Badge
-              variant="outline"
-              className="text-xs px-1.5 py-0.5 animate-pulse"
-            >
-              Generating...
+            <Badge className="text-xs px-2 py-0.5 bg-primary/10 text-primary border-primary/20 animate-pulse">
+              Rédaction...
             </Badge>
           )}
+          <span className="text-xs text-muted-foreground">
+            {message.timestamp.toLocaleTimeString("fr-FR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
         </div>
 
         {/* Message Bubble */}
         <div
           className={cn(
-            "relative rounded-2xl px-4 py-3 max-w-4xl",
-            isUser
-              ? "bg-primary text-primary-foreground ml-auto"
-              : "bg-card border border-border",
-            message.isStreaming && "animate-fade-in",
+            "rounded-2xl px-5 py-4 max-w-none",
+            isUser ? "message-user" : "message-assistant",
           )}
         >
+          {/* Image attachments */}
+          {message.images && message.images.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {message.images.map((image, index) => (
+                <div
+                  key={index}
+                  className="relative rounded-lg overflow-hidden border border-border/30"
+                >
+                  <img
+                    src={image.url}
+                    alt={image.name}
+                    className="w-20 h-20 object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                </div>
+              ))}
+            </div>
+          )}
+
           <div
             className={cn(
               "prose prose-sm max-w-none",
               isUser
-                ? "prose-invert text-primary-foreground [&_strong]:text-primary-foreground [&_em]:text-primary-foreground/90"
-                : "text-foreground [&_strong]:text-foreground [&_em]:text-muted-foreground",
+                ? "prose-invert text-primary-foreground [&_strong]:text-primary-foreground [&_em]:text-primary-foreground/90 [&_p]:text-primary-foreground [&_code]:bg-white/20 [&_code]:text-primary-foreground"
+                : "text-foreground [&_strong]:text-foreground [&_em]:text-muted-foreground [&_p]:text-foreground [&_p]:mb-2 [&_p:last-child]:mb-0",
             )}
             dangerouslySetInnerHTML={{ __html: formatContent(message.content) }}
           />
 
           {/* Streaming cursor */}
           {message.isStreaming && (
-            <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />
+            <span className="inline-block w-0.5 h-5 bg-primary animate-pulse ml-1" />
           )}
         </div>
 
         {/* Message Actions */}
-        <div
-          className={cn(
-            "flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity",
-            isUser && "justify-end",
-          )}
-        >
+        <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button
             variant="ghost"
             size="sm"
             onClick={copyToClipboard}
-            className="h-6 px-2 text-xs"
+            className="h-7 px-3 text-xs hover-lift focus-ring"
           >
-            <Copy className="w-3 h-3 mr-1" />
-            Copy
+            <Copy className="w-3 h-3 mr-1.5" />
+            Copier
           </Button>
 
           {showRegenerate && !isUser && onRegenerate && (
@@ -169,19 +177,12 @@ const ChatMessageComponent = ({
               variant="ghost"
               size="sm"
               onClick={onRegenerate}
-              className="h-6 px-2 text-xs"
+              className="h-7 px-3 text-xs hover-lift focus-ring"
             >
-              <RotateCcw className="w-3 h-3 mr-1" />
-              Regenerate
+              <RotateCcw className="w-3 h-3 mr-1.5" />
+              Régénérer
             </Button>
           )}
-
-          <span className="text-xs text-muted-foreground">
-            {message.timestamp.toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
         </div>
       </div>
     </div>
