@@ -281,26 +281,49 @@ class FirebaseLicenseManager {
   // Vérifier si l'utilisateur a une license valide
   public async hasValidLicense(): Promise<boolean> {
     try {
+      console.log("🔍 Vérification de license existante...");
       const userLicense = this.getUserLicense();
-      if (!userLicense) return false;
+      console.log("📋 License locale trouvée:", userLicense ? "Oui" : "Non");
 
+      if (!userLicense) {
+        console.log("❌ Aucune license locale trouvée");
+        return false;
+      }
+
+      console.log("🔄 Validation de la license:", userLicense);
       const validation = await this.validateLicense(userLicense);
+      console.log(
+        "✅ Résultat validation:",
+        validation.valid,
+        validation.message,
+      );
+
       if (!validation.valid) {
-        // Supprimer la license invalide
+        console.log("❌ License invalide, suppression locale");
         localStorage.removeItem(this.userLicenseKey);
         return false;
       }
 
       // Vérifier que cet appareil est autorisé
       const license = validation.license;
-      if (!license?.usedBy.includes(this.deviceId)) {
+      const deviceAuthorized = license?.usedBy.includes(this.deviceId);
+      console.log(
+        "🔐 Appareil autorisé:",
+        deviceAuthorized,
+        "Device ID:",
+        this.deviceId,
+      );
+
+      if (!deviceAuthorized) {
+        console.log("❌ Appareil non autorisé, suppression locale");
         localStorage.removeItem(this.userLicenseKey);
         return false;
       }
 
+      console.log("✅ License valide et appareil autorisé");
       return true;
     } catch (error) {
-      console.error("Erreur lors de la vérification:", error);
+      console.error("❌ Erreur lors de la vérification:", error);
       return false;
     }
   }
