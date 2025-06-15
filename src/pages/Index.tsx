@@ -44,13 +44,11 @@ import {
   Plus,
   MessageSquare,
   Paperclip,
-  Wand2,
-  Palette,
+  History,
 } from "lucide-react";
 import { useChat } from "@/hooks/use-chat";
 import ChatMessageComponent from "@/components/ui/chat-message";
-import ImageUpload from "@/components/ui/image-upload";
-import ImageGenerationPanel from "@/components/ui/image-generation";
+import ImageUploadModal from "@/components/ui/image-upload-modal";
 import ConversationSidebar from "@/components/ui/conversation-sidebar";
 import {
   NothingAIWordmark,
@@ -88,7 +86,6 @@ const Index = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
-  const [activeTab, setActiveTab] = useState("chat");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -108,14 +105,21 @@ const Index = () => {
 
     sendMessage(input);
     setInput("");
-    setShowImageUpload(false);
-    setActiveTab("chat"); // Switch to chat tab when sending message
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
+    }
+  };
+
+  const handleImageSend = () => {
+    if (imageAnalysis.hasImages) {
+      setInput("Analyse ces images pour moi");
+      setTimeout(() => {
+        handleSubmit(new Event("submit") as any);
+      }, 100);
     }
   };
 
@@ -183,64 +187,37 @@ const Index = () => {
             </Button>
           </div>
 
-          {/* Sidebar Navigation */}
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full"
-          >
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="chat" className="text-xs">
-                <MessageSquare className="w-3 h-3 mr-1" />
-                Chat
-              </TabsTrigger>
-              <TabsTrigger value="images" className="text-xs">
-                <Palette className="w-3 h-3 mr-1" />
-                Images
-              </TabsTrigger>
-              <TabsTrigger value="history" className="text-xs">
-                <Download className="w-3 h-3 mr-1" />
-                Historique
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {/* Simplified Navigation - Only Chat and History */}
+          <div className="space-y-2">
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => setShowImageUpload(true)}
+            >
+              <ImageIcon className="w-4 h-4 mr-2" />
+              Analyser des Images
+              {imageAnalysis.hasImages && (
+                <Badge className="ml-auto text-xs">
+                  {imageAnalysis.uploadedImages.length}
+                </Badge>
+              )}
+            </Button>
+          </div>
         </div>
 
-        {/* Sidebar Content */}
-        <div className="flex-1 overflow-hidden">
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="h-full"
-          >
-            <TabsContent value="chat" className="h-full m-0">
-              <div className="p-4 text-center text-sm text-muted-foreground">
-                <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>Zone de chat principal</p>
-                <p className="text-xs">
-                  Tapez votre message dans la zone de saisie
-                </p>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="images" className="h-full m-0 p-4">
-              <ImageGenerationPanel />
-            </TabsContent>
-
-            <TabsContent value="history" className="h-full m-0">
-              <ConversationSidebar
-                conversations={conversations}
-                currentConversationId={currentConversationId}
-                onLoadConversation={loadConversationById}
-                onDeleteConversation={deleteConversation}
-                onNewConversation={clearMessages}
-                onExportConversation={exportChat}
-                onClearAllData={clearAllData}
-                stats={getStats()}
-                className="border-0"
-              />
-            </TabsContent>
-          </Tabs>
+        {/* Conversations History */}
+        <div className="flex-1">
+          <ConversationSidebar
+            conversations={conversations}
+            currentConversationId={currentConversationId}
+            onLoadConversation={loadConversationById}
+            onDeleteConversation={deleteConversation}
+            onNewConversation={clearMessages}
+            onExportConversation={exportChat}
+            onClearAllData={clearAllData}
+            stats={getStats()}
+            className="border-0"
+          />
         </div>
       </div>
 
@@ -261,43 +238,36 @@ const Index = () => {
                   <div className="p-4 border-b">
                     <NothingAIWordmark size="sm" />
                   </div>
-                  <Tabs defaultValue="history" className="h-full">
-                    <div className="px-4 py-2 border-b">
-                      <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="chat" className="text-xs">
-                          Chat
-                        </TabsTrigger>
-                        <TabsTrigger value="images" className="text-xs">
-                          Images
-                        </TabsTrigger>
-                        <TabsTrigger value="history" className="text-xs">
-                          Historique
-                        </TabsTrigger>
-                      </TabsList>
-                    </div>
-                    <TabsContent value="images" className="m-0 p-4">
-                      <ImageGenerationPanel />
-                    </TabsContent>
-                    <TabsContent value="history" className="m-0">
-                      <ConversationSidebar
-                        conversations={conversations}
-                        currentConversationId={currentConversationId}
-                        onLoadConversation={(id) => {
-                          loadConversationById(id);
-                          setShowSidebar(false);
-                        }}
-                        onDeleteConversation={deleteConversation}
-                        onNewConversation={() => {
-                          clearMessages();
-                          setShowSidebar(false);
-                        }}
-                        onExportConversation={exportChat}
-                        onClearAllData={clearAllData}
-                        stats={getStats()}
-                        className="border-0"
-                      />
-                    </TabsContent>
-                  </Tabs>
+                  <div className="p-4 space-y-2">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={() => {
+                        setShowImageUpload(true);
+                        setShowSidebar(false);
+                      }}
+                    >
+                      <ImageIcon className="w-4 h-4 mr-2" />
+                      Analyser des Images
+                    </Button>
+                  </div>
+                  <ConversationSidebar
+                    conversations={conversations}
+                    currentConversationId={currentConversationId}
+                    onLoadConversation={(id) => {
+                      loadConversationById(id);
+                      setShowSidebar(false);
+                    }}
+                    onDeleteConversation={deleteConversation}
+                    onNewConversation={() => {
+                      clearMessages();
+                      setShowSidebar(false);
+                    }}
+                    onExportConversation={exportChat}
+                    onClearAllData={clearAllData}
+                    stats={getStats()}
+                    className="border-0"
+                  />
                 </SheetContent>
               </Sheet>
 
@@ -329,12 +299,12 @@ const Index = () => {
                 {imageAnalysis.hasImages && (
                   <Badge className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">
                     <ImageIcon className="w-3 h-3 mr-1" />
-                    {imageAnalysis.uploadedImages.length} image(s)
+                    {imageAnalysis.uploadedImages.length} image(s) prête(s)
                   </Badge>
                 )}
                 {imageGeneration.generatedImages.length > 0 && (
                   <Badge className="text-xs bg-purple-500/10 text-purple-500 border-purple-500/20">
-                    <Wand2 className="w-3 h-3 mr-1" />
+                    <Sparkles className="w-3 h-3 mr-1" />
                     {imageGeneration.generatedImages.length} générée(s)
                   </Badge>
                 )}
@@ -501,22 +471,6 @@ const Index = () => {
 
         {/* Chat Area */}
         <div className="flex-1 flex flex-col">
-          {/* Image Upload Section */}
-          {showImageUpload && (
-            <div className="border-b border-border/30 bg-card/30 p-6">
-              <ImageUpload
-                images={imageAnalysis.uploadedImages}
-                onImagesAdd={imageAnalysis.addImages}
-                onImageRemove={imageAnalysis.removeImage}
-                onClearAll={imageAnalysis.clearAllImages}
-                isDragging={imageAnalysis.isDragging}
-                onDrop={imageAnalysis.handleDrop}
-                onDragOver={imageAnalysis.handleDragOver}
-                onDragLeave={imageAnalysis.handleDragLeave}
-              />
-            </div>
-          )}
-
           {/* Messages */}
           <ScrollArea className="flex-1">
             <div
@@ -604,24 +558,13 @@ const Index = () => {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowImageUpload(!showImageUpload)}
+                    onClick={() => setShowImageUpload(true)}
                     className={cn(
                       "mb-1 focus-ring",
-                      showImageUpload && "bg-primary/10 text-primary",
+                      imageAnalysis.hasImages && "bg-primary/10 text-primary",
                     )}
                   >
                     <Paperclip className="w-4 h-4" />
-                  </Button>
-
-                  {/* Image Generation Shortcut */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setActiveTab("images")}
-                    className="mb-1 focus-ring lg:hidden"
-                  >
-                    <Wand2 className="w-4 h-4" />
                   </Button>
 
                   {/* Text Input */}
@@ -633,7 +576,7 @@ const Index = () => {
                       onKeyDown={handleKeyDown}
                       placeholder={
                         imageAnalysis.hasImages
-                          ? "Décrivez ou posez une question sur vos images..."
+                          ? "Posez une question sur vos images..."
                           : "Envoyez un message à NothingAI... (ou 'génère une image de...')"
                       }
                       disabled={isStreaming}
@@ -674,23 +617,14 @@ const Index = () => {
                       <Trash2 className="w-3 h-3 mr-1" />
                       Nouveau chat
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setActiveTab("images")}
-                      className="h-7 px-2 hover-lift hidden lg:flex"
-                    >
-                      <Wand2 className="w-3 h-3 mr-1" />
-                      Générer image
-                    </Button>
                   </div>
                   <span>
                     <kbd className="px-2 py-1 bg-muted/50 rounded text-xs">
                       ⏎
                     </kbd>{" "}
                     pour envoyer •{" "}
-                    <span className="text-purple-400">
-                      Génération d'images gratuite
+                    <span className="text-blue-400">
+                      Analyse d'images • Génération gratuite
                     </span>
                   </span>
                 </div>
@@ -699,6 +633,21 @@ const Index = () => {
           </div>
         </div>
       </div>
+
+      {/* Image Upload Modal */}
+      <ImageUploadModal
+        open={showImageUpload}
+        onOpenChange={setShowImageUpload}
+        images={imageAnalysis.uploadedImages}
+        onImagesAdd={imageAnalysis.addImages}
+        onImageRemove={imageAnalysis.removeImage}
+        onClearAll={imageAnalysis.clearAllImages}
+        onSend={handleImageSend}
+        isDragging={imageAnalysis.isDragging}
+        onDrop={imageAnalysis.handleDrop}
+        onDragOver={imageAnalysis.handleDragOver}
+        onDragLeave={imageAnalysis.handleDragLeave}
+      />
     </div>
   );
 };
