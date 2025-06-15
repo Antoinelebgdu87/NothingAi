@@ -81,7 +81,7 @@ const App = () => {
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      securityManager.disable();
+      // securityManager.disable(); // Désactivé pour simplicité
     };
   }, []);
 
