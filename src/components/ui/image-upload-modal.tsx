@@ -69,7 +69,7 @@ const ImageUploadModal = ({
   };
 
   const handleSendAndClose = () => {
-    if (images.length > 0) {
+    if (images && images.length > 0) {
       onSend();
       onOpenChange(false);
     }
