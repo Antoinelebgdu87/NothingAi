@@ -47,8 +47,11 @@ import {
   History,
   ExternalLink,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { toast } from "sonner";
+import { useImageGeneration } from "@/hooks/use-image-generation";
 import { useChat } from "@/hooks/use-chat";
+import { useMobile } from "@/hooks/use-mobile";
+import { NothingAIWordmark } from "@/components/ui/nothingai-logo";
 import ChatMessageComponent from "@/components/ui/chat-message";
 import ImageUploadModal from "@/components/ui/image-upload-modal";
 import ImageGenerationModal from "@/components/ui/image-generation-modal";
