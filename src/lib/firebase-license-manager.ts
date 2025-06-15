@@ -419,12 +419,20 @@ class FirebaseLicenseManager {
   // Test de connectivité Firebase
   public async testConnection(): Promise<boolean> {
     try {
+      console.log("🌐 Test de connexion Firebase...");
+
+      if (!db) {
+        console.error("❌ Firestore non initialisé");
+        return false;
+      }
+
       // Test simple de lecture
       const testQuery = query(collection(db, "licenses"), limit(1));
-      await getDocs(testQuery);
+      const result = await getDocs(testQuery);
+      console.log("✅ Connexion Firebase réussie, documents:", result.size);
       return true;
     } catch (error) {
-      console.error("Test de connexion Firebase échoué:", error);
+      console.error("❌ Test de connexion Firebase échoué:", error);
       return false;
     }
   }
