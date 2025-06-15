@@ -44,7 +44,8 @@ const App = () => {
             console.log("📦 Module Firebase license manager chargé");
 
             try {
-              const hasLicense = module.firebaseLicenseManager.hasValidLicense();
+              const hasLicense =
+                module.firebaseLicenseManager.hasValidLicense();
               console.log("📋 License trouvée:", hasLicense);
               setHasValidLicense(hasLicense);
             } catch (error) {
@@ -133,12 +134,13 @@ const App = () => {
 
           {!hasValidLicense ? (
             <>
-        <FirebaseLicenseGate onLicenseValid={() => setHasValidLicense(true)} />
-        {/* Panel Admin même quand pas de license */}
-        <FirebaseAdminPanel
-          open={showAdminPanel}
-          onClose={() => setShowAdminPanel(false)}
-        />
+              <FirebaseLicenseGate
+                onLicenseValid={() => setHasValidLicense(true)}
+              />
+              {/* Panel Admin même quand pas de license */}
+              <FirebaseAdminPanel
+                open={showAdminPanel}
+                onClose={() => setShowAdminPanel(false)}
               />
             </>
           ) : (
@@ -149,7 +151,7 @@ const App = () => {
                 <Route path="/images" element={<GeneratedImages />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
-              <SimpleAdminPanel
+              <FirebaseAdminPanel
                 open={showAdminPanel}
                 onClose={() => setShowAdminPanel(false)}
               />
