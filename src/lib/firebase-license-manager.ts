@@ -289,51 +289,51 @@ class FirebaseLicenseManager {
   // Vérifier si l'utilisateur a une license valide
   public async hasValidLicense(): Promise<boolean> {
     try {
-      console.log("🔍 Vérification de license existante...");
       const userLicense = this.getUserLicense();
-      console.log("📋 License locale trouvée:", userLicense ? "Oui" : "Non");
 
       if (!userLicense) {
         console.log("❌ Aucune license locale trouvée");
         return false;
       }
 
-      console.log("🔄 Validation de la license:", userLicense);
-      const validation = await this.validateLicense(userLicense);
-      console.log(
-        "✅ Résultat validation:",
-        validation.valid,
-        validation.message,
-      );
+      console.log("📋 License locale trouvée:", userLicense);
 
-      if (!validation.valid) {
-        console.log("❌ License invalide, suppression locale");
-        localStorage.removeItem(this.userLicenseKey);
-        return false;
+      // Vérification rapide avec timeout pour éviter les blocages
+      try {
+        const validation = await Promise.race([
+          this.validateLicense(userLicense),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Timeout")), 5000)
+          ),
+        ]);
+
+        if (validation && validation.valid) {
+          console.log("✅ License validée avec Firebase");
+          return true;
+        } else {
+          console.log("❌ License invalide selon Firebase");
+          localStorage.removeItem(this.userLicenseKey);
+          return false;
+        }
+      } catch (error) {
+        // Si Firebase ne répond pas, on fait une validation locale basique
+        console.warn("⚠️ Firebase inaccessible, validation locale:", error);
+
+        // Validation locale simple : vérifier le format de la clé
+        if (userLicense.startsWith("NothingAi-") && userLicense.length > 10) {
+          console.log("✅ License locale valide (mode offline)");
+          return true;
+        } else {
+          console.log("❌ Format de license local invalide");
+          localStorage.removeItem(this.userLicenseKey);
+          return false;
+        }
       }
-
-      // Vérifier que cet appareil est autorisé
-      const license = validation.license;
-      const deviceAuthorized = license?.usedBy.includes(this.deviceId);
-      console.log(
-        "🔐 Appareil autorisé:",
-        deviceAuthorized,
-        "Device ID:",
-        this.deviceId,
-      );
-
-      if (!deviceAuthorized) {
-        console.log("❌ Appareil non autorisé, suppression locale");
-        localStorage.removeItem(this.userLicenseKey);
-        return false;
-      }
-
-      console.log("✅ License valide et appareil autorisé");
-      return true;
     } catch (error) {
-      console.error("❌ Erreur lors de la vérification:", error);
+      console.error("❌ Erreur critique vérification license:", error);
       return false;
     }
+  }
   }
 
   // Fonctions d'administration
