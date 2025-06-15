@@ -57,10 +57,23 @@ class InstantLicenseManager {
   // Encoder les données dans la clé (auto-validante)
   private encodeLicenseData(data: LicenseData): string {
     try {
-      const jsonStr = JSON.stringify(data);
+      // Compactage des données pour une clé courte
+      const compactData = {
+        d: data.duration,
+        u: data.maxUsages,
+        c: Math.floor(data.created / 1000), // timestamp en secondes
+      };
+
+      const jsonStr = JSON.stringify(compactData);
       const encoded = btoa(jsonStr);
-      // Prendre seulement les 8 premiers caractères pour faire une clé courte
-      return encoded.substring(0, 8).toUpperCase();
+
+      // Remplacer caractères non-alphanumériques et raccourcir
+      const cleanEncoded = encoded
+        .replace(/[+/=]/g, "")
+        .substring(0, 12)
+        .toUpperCase();
+
+      return cleanEncoded;
     } catch {
       return Math.random().toString(36).substr(2, 8).toUpperCase();
     }
@@ -69,17 +82,47 @@ class InstantLicenseManager {
   // Décoder les données depuis la clé
   private decodeLicenseData(key: string): LicenseData | null {
     try {
-      // Essayer de décoder les clés générées
-      if (key.length >= 8) {
-        const encoded = key.substring(0, 8);
-        const decoded = atob(encoded);
-        const data = JSON.parse(decoded);
+      // Vérifier si c'est une clé encodée
+      if (!key || key.length < 8) {
+        return null;
+      }
 
-        // Vérifier que c'est bien une structure de license
-        if (data.duration && data.maxUsages && data.created) {
-          return data;
+      // Extraire la partie encodée (supprimer préfixe/suffixe)
+      let encodedPart = key;
+
+      // Si la clé contient des caractères non-base64, essayer de les isoler
+      const keyPart = key.replace("NOTHINGAI-", "");
+      if (keyPart.length >= 8) {
+        encodedPart = keyPart.substring(0, 12); // Prendre jusqu'à 12 chars
+      }
+
+      // Essayer différentes longueurs d'encodage
+      for (let len = 8; len <= Math.min(encodedPart.length, 16); len++) {
+        try {
+          let testPart = encodedPart.substring(0, len);
+
+          // Rétablir les caractères Base64 manquants
+          while (testPart.length % 4 !== 0) {
+            testPart += "=";
+          }
+
+          const decoded = atob(testPart);
+          const data = JSON.parse(decoded);
+
+          // Vérifier la structure compacte
+          if (data.d && data.u && data.c) {
+            return {
+              duration: data.d,
+              maxUsages: data.u,
+              created: data.c * 1000, // reconvertir en millisecondes
+            };
+          }
+        } catch {
+          // Continuer avec la longueur suivante
+          continue;
         }
       }
+
       return null;
     } catch {
       return null;
@@ -101,7 +144,7 @@ class InstantLicenseManager {
         created: now,
       };
 
-      // Encoder dans la cl��
+      // Encoder dans la clé
       const encodedPart = this.encodeLicenseData(licenseData);
 
       // Ajouter un suffixe aléatoire pour l'unicité
