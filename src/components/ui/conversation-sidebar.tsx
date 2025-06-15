@@ -171,7 +171,7 @@ const ConversationSidebar = ({
                           </p>
                           <div className="flex items-center space-x-2 mt-1">
                             <Badge variant="outline" className="text-xs px-1">
-                              {conversation.messages.length} messages
+                              {conversation.messages?.length || 0} messages
                             </Badge>
                             <span className="text-xs text-muted-foreground">
                               <Calendar className="w-3 h-3 inline mr-1" />
