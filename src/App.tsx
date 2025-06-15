@@ -9,9 +9,9 @@ import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import GeneratedImages from "./pages/GeneratedImages";
 import NotFound from "./pages/NotFound";
-import FirebaseLicenseGate from "./components/ui/firebase-license-gate";
-import FirebaseAdminPanel from "./components/ui/firebase-admin-panel";
-import { hybridLicenseManager } from "./lib/hybrid-license-manager";
+import SimpleLicenseGate from "./components/ui/simple-license-gate";
+import SimpleAdminPanel from "./components/ui/simple-admin-panel";
+import { simpleLicenseManager } from "./lib/simple-license-manager";
 import { securityManager } from "./lib/security";
 
 const queryClient = new QueryClient({
@@ -124,8 +124,8 @@ const App = () => {
 
           {!hasValidLicense ? (
             <>
-              <FirebaseLicenseGate onLicenseValid={handleLicenseValid} />
-              <FirebaseAdminPanel
+              <SimpleLicenseGate onLicenseValid={handleLicenseValid} />
+              <SimpleAdminPanel
                 open={showAdminPanel}
                 onClose={() => setShowAdminPanel(false)}
               />
@@ -138,7 +138,7 @@ const App = () => {
                 <Route path="/images" element={<GeneratedImages />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
-              <FirebaseAdminPanel
+              <SimpleAdminPanel
                 open={showAdminPanel}
                 onClose={() => setShowAdminPanel(false)}
               />
