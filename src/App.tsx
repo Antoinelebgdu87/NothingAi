@@ -9,8 +9,8 @@ import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import GeneratedImages from "./pages/GeneratedImages";
 import NotFound from "./pages/NotFound";
-import SimpleLicenseGate from "./components/ui/simple-license-gate";
-import SimpleAdminPanel from "./components/ui/simple-admin-panel";
+import FirebaseLicenseGate from "./components/ui/firebase-license-gate";
+import FirebaseAdminPanel from "./components/ui/firebase-admin-panel";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,12 +39,12 @@ const App = () => {
         console.log("🔍 Vérification des licenses...");
 
         // Import dynamique pour éviter les erreurs de module
-        import("./lib/simple-license-manager")
+        import("./lib/firebase-license-manager")
           .then((module) => {
-            console.log("📦 Module license manager chargé");
+            console.log("📦 Module Firebase license manager chargé");
 
             try {
-              const hasLicense = module.simpleLicenseManager.hasValidLicense();
+              const hasLicense = module.firebaseLicenseManager.hasValidLicense();
               console.log("📋 License trouvée:", hasLicense);
               setHasValidLicense(hasLicense);
             } catch (error) {
@@ -133,10 +133,12 @@ const App = () => {
 
           {!hasValidLicense ? (
             <>
-              <SimpleLicenseGate onLicenseValid={handleLicenseValid} />
-              <SimpleAdminPanel
-                open={showAdminPanel}
-                onClose={() => setShowAdminPanel(false)}
+        <FirebaseLicenseGate onLicenseValid={() => setHasValidLicense(true)} />
+        {/* Panel Admin même quand pas de license */}
+        <FirebaseAdminPanel
+          open={showAdminPanel}
+          onClose={() => setShowAdminPanel(false)}
+        />
               />
             </>
           ) : (
