@@ -488,20 +488,7 @@ const Index = () => {
                               <h4 className="text-sm font-medium text-green-500 mb-1 flex items-center">
                                 <Zap className="w-3 h-3 mr-1" />
                                 Modèles Gratuits
-                            onClick={() => {
-                              // Supprimer complètement le compte
-                              simpleLicenseManager.deleteAccount();
-
-                              toast.success("Compte supprimé avec succès !", {
-                                description: "Redirection vers l'écran de license..."
-                              });
-
-                              // Recharger la page pour retourner à l'écran de license
-                              setTimeout(() => {
-                                window.location.reload();
-                              }, 1500);
-                            }}
-                                    </Badge>
+                              </h4>
                                   </div>
                                 </SelectItem>
                               ))}
