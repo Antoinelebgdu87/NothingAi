@@ -215,6 +215,45 @@ const FirebaseLicenseGate = ({ onLicenseValid }: FirebaseLicenseGateProps) => {
                 </>
               )}
             </Button>
+
+            {/* Bouton de test Firebase (mode développement) */}
+            {import.meta.env.DEV && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full mt-2"
+                onClick={async () => {
+                  try {
+                    console.log("🧪 Test Firebase complet...");
+                    const connected =
+                      await firebaseLicenseManager.testConnection();
+                    console.log("Connexion:", connected);
+
+                    if (connected) {
+                      const licenses =
+                        await firebaseLicenseManager.getAllLicenses();
+                      console.log("Licenses trouvées:", licenses);
+
+                      if (licenseKey.trim()) {
+                        const validation =
+                          await firebaseLicenseManager.validateLicense(
+                            licenseKey.trim(),
+                          );
+                        console.log("Test validation:", validation);
+                      }
+                    }
+
+                    toast.info(`Test terminé - Voir console pour détails`);
+                  } catch (error) {
+                    console.error("Erreur test:", error);
+                    toast.error("Erreur durant le test");
+                  }
+                }}
+                disabled={isValidating || !isConnected}
+              >
+                🧪 Test Firebase (Dev)
+              </Button>
+            )}
           </form>
 
           {/* Informations sur les licenses */}
