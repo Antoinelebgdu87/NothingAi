@@ -49,6 +49,7 @@ import {
 import { useChat } from "@/hooks/use-chat";
 import ChatMessageComponent from "@/components/ui/chat-message";
 import ImageUploadModal from "@/components/ui/image-upload-modal";
+import ImageGenerationModal from "@/components/ui/image-generation-modal";
 import ConversationSidebar from "@/components/ui/conversation-sidebar";
 import {
   NothingAIWordmark,
@@ -86,6 +87,7 @@ const Index = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
+  const [showImageGeneration, setShowImageGeneration] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
