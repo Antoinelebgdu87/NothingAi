@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import LogoCustomizer from "@/components/ui/logo-customizer";
 import ImageFormatSelector from "@/components/ui/image-format-selector";
+import APIHealthCheck from "@/components/ui/api-health-check";
 import { NothingAIWordmark } from "@/components/ui/nothingai-logo";
 import { useChat } from "@/hooks/use-chat";
 import { useImageGeneration } from "@/hooks/use-image-generation";
@@ -498,6 +499,23 @@ const Settings = () => {
                     currentHeight={imageSettings.height}
                   />
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Diagnostic des Services */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Diagnostic des Services</CardTitle>
+                <CardDescription>
+                  Vérifiez l'état des APIs de génération d'images
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <APIHealthCheck />
+                <p className="text-xs text-muted-foreground mt-3">
+                  Utilisez ce diagnostic en cas de problèmes de génération
+                  d'images pour identifier les services disponibles.
+                </p>
               </CardContent>
             </Card>
           </TabsContent>
