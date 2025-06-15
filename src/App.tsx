@@ -44,19 +44,26 @@ const App = () => {
         // Test de connexion (Firebase ou fallback)
         const isConnected = await hybridLicenseManager.testConnection();
         const status = hybridLicenseManager.getStatus();
-        console.log("🌐 Système de license:", status.mode, "- Connecté:", isConnected);
+        console.log(
+          "🌐 Système de license:",
+          status.mode,
+          "- Connecté:",
+          isConnected,
+        );
 
         const hasLicense = await hybridLicenseManager.hasValidLicense();
         console.log("📋 License existante trouvée:", hasLicense);
         setHasValidLicense(hasLicense);
       } catch (error) {
-        console.error("❌ Erreur lors de la vérification de la license:", error);
+        console.error(
+          "❌ Erreur lors de la vérification de la license:",
+          error,
+        );
         console.log("🔄 Démarrage en mode license requise");
         setHasValidLicense(false);
       } finally {
         setIsLoading(false);
       }
-    };
     };
 
     // Délai pour l'effet de chargement puis vérification
