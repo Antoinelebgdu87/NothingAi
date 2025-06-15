@@ -11,7 +11,6 @@ import GeneratedImages from "./pages/GeneratedImages";
 import NotFound from "./pages/NotFound";
 import SimpleLicenseGate from "./components/ui/simple-license-gate";
 import SimpleAdminPanel from "./components/ui/simple-admin-panel";
-import { simpleLicenseManager } from "./lib/simple-license-manager";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,39 +31,50 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Vérification simple et rapide de la license
-    const checkLicense = () => {
-      console.log("🔍 Vérification simple de la license...");
+    // Version ultra-simple qui marche à coup sûr
+    console.log("🚀 Démarrage de l'application...");
 
+    const initApp = () => {
       try {
-        // Test si simpleLicenseManager existe
-        console.log("📦 SimpleLicenseManager:", simpleLicenseManager);
-        console.log(
-          "🔧 Méthode hasValidLicense:",
-          typeof simpleLicenseManager?.hasValidLicense,
-        );
+        console.log("🔍 Vérification des licenses...");
 
-        const hasLicense = simpleLicenseManager.hasValidLicense();
-        console.log("📋 License trouvée:", hasLicense);
-        setHasValidLicense(hasLicense);
+        // Import dynamique pour éviter les erreurs de module
+        import("./lib/simple-license-manager")
+          .then((module) => {
+            console.log("📦 Module license manager chargé");
+
+            try {
+              const hasLicense = module.simpleLicenseManager.hasValidLicense();
+              console.log("📋 License trouvée:", hasLicense);
+              setHasValidLicense(hasLicense);
+            } catch (error) {
+              console.error("❌ Erreur vérification license:", error);
+              setHasValidLicense(false);
+            }
+
+            setIsLoading(false);
+            console.log("✅ Application initialisée");
+          })
+          .catch((error) => {
+            console.error("❌ Erreur import module:", error);
+            setHasValidLicense(false);
+            setIsLoading(false);
+          });
       } catch (error) {
-        console.error("❌ Erreur vérification:", error);
-        console.error("❌ Stack trace:", error);
+        console.error("❌ Erreur initialisation:", error);
         setHasValidLicense(false);
-      } finally {
-        console.log("✅ Fin du loading");
         setIsLoading(false);
       }
     };
 
-    // Vérification rapide après 500ms
-    setTimeout(checkLicense, 500);
+    // Délai court puis initialisation
+    setTimeout(initApp, 200);
 
-    // Timeout de sécurité pour éviter le loading infini
+    // Timeout de sécurité absolu
     setTimeout(() => {
       console.log("⚠️ Timeout de sécurité - Arrêt forcé du loading");
       setIsLoading(false);
-    }, 3000);
+    }, 2000);
 
     // Gestionnaire pour Ctrl+F1 (Admin Panel)
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -91,6 +101,9 @@ const App = () => {
         <div className="text-center space-y-4">
           <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto" />
           <p className="text-white">Chargement de NothingAI...</p>
+          <p className="text-white/60 text-sm">
+            Initialisation du système de license
+          </p>
         </div>
       </div>
     );
