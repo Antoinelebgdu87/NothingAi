@@ -211,28 +211,52 @@ export function useImageGeneration() {
         return;
       }
 
-      // Autres erreurs techniques
-      if (errorMessage.includes("503")) {
+      // Erreurs réseau et de connectivité
+      if (
+        errorMessage.includes("Failed to fetch") ||
+        errorMessage.includes("connexion réseau")
+      ) {
         errorMessage =
-          "Service temporairement indisponible. Réessayez dans quelques minutes.";
+          "🌐 Problème de connexion. Vérifiez votre connexion internet et réessayez.";
+      } else if (errorMessage.includes("503")) {
+        errorMessage =
+          "🔧 Service temporairement indisponible. Réessayez dans quelques minutes.";
       } else if (errorMessage.includes("401") || errorMessage.includes("403")) {
-        errorMessage = "Problème d'authentification. Vérifiez votre token API.";
+        errorMessage =
+          "🔐 Problème d'authentification. Vérifiez votre token API.";
       } else if (errorMessage.includes("429")) {
-        errorMessage = "Trop de requêtes. Attendez un peu avant de réessayer.";
+        errorMessage =
+          "⏳ Trop de requêtes. Attendez un peu avant de réessayer.";
       } else if (
         errorMessage.includes("timeout") ||
         errorMessage.includes("Timeout")
       ) {
         errorMessage =
-          "La génération a pris trop de temps. Réessayez avec un prompt plus simple.";
+          "⏱️ La génération a pris trop de temps. Réessayez avec un prompt plus simple.";
       } else if (
         errorMessage.includes("0 octets") ||
         errorMessage.includes("empty")
       ) {
-        errorMessage = "L'image générée est vide. Essayez un prompt différent.";
+        errorMessage =
+          "🖼️ L'image générée est vide. Essayez un prompt différent.";
+      } else if (errorMessage.includes("CORS")) {
+        errorMessage =
+          "🔒 Problème de sécurité réseau. Essayez de rafraîchir la page.";
+      } else if (errorMessage.includes("tous les endpoints")) {
+        errorMessage =
+          "🚫 Tous les services de génération sont temporairement indisponibles. Réessayez plus tard.";
       }
 
-      toast.error(`Erreur: ${errorMessage}`);
+      toast.error(`${errorMessage}`, {
+        duration: 6000,
+        action: {
+          label: "Réessayer",
+          onClick: () => {
+            // Optionally retry the last generation
+            console.log("Retry requested by user");
+          },
+        },
+      });
       setIsGenerating(false);
     },
   });
