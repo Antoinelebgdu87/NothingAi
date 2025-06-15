@@ -6,54 +6,114 @@ import {
   type GeneratedImage,
   ImageGenerationAPI,
 } from "@/lib/image-generation";
+import {
+  huggingFaceAPI,
+  type HuggingFaceRequest,
+  type HuggingFaceImage,
+  HuggingFaceAPI,
+} from "@/lib/huggingface-api";
 import { toast } from "sonner";
 
+export type ImageProvider = "pollinations" | "huggingface";
+
 export interface ImageGenerationSettings {
-  model: string;
+  provider: ImageProvider;
+  // Pollinations settings
+  pollinationsModel: string;
+  // Hugging Face settings
+  huggingFaceModel: string;
+  huggingFaceToken?: string;
+  // Common settings
   width: number;
   height: number;
   enhance: boolean;
   seed?: number;
+  // Stable Diffusion specific
+  negative_prompt?: string;
+  num_inference_steps?: number;
+  guidance_scale?: number;
 }
 
+export type UnifiedGeneratedImage =
+  | GeneratedImage
+  | (HuggingFaceImage & { provider: "huggingface" });
+
 const DEFAULT_SETTINGS: ImageGenerationSettings = {
-  model: "flux",
-  width: 1024,
-  height: 1024,
+  provider: "pollinations",
+  pollinationsModel: "flux",
+  huggingFaceModel: "stabilityai/stable-diffusion-2",
+  width: 512,
+  height: 512,
   enhance: true,
+  negative_prompt: "blurry, bad quality, distorted, ugly",
+  num_inference_steps: 20,
+  guidance_scale: 7.5,
 };
 
 export function useImageGeneration() {
   const [settings, setSettings] =
     useState<ImageGenerationSettings>(DEFAULT_SETTINGS);
-  const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
+  const [generatedImages, setGeneratedImages] = useState<
+    UnifiedGeneratedImage[]
+  >([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Generate image mutation
+  // Generate image mutation with dual API support
   const generateImageMutation = useMutation({
     mutationFn: async (prompt: string) => {
       setIsGenerating(true);
 
-      const request: ImageGenerationRequest = {
-        prompt,
-        width: settings.width,
-        height: settings.height,
-        model: settings.model as any,
-        enhance: settings.enhance,
-        seed: settings.seed,
-        nologo: true,
-        private: false,
-      };
+      if (settings.provider === "huggingface") {
+        // Use Hugging Face API
+        const hfAPI = settings.huggingFaceToken
+          ? new HuggingFaceAPI(settings.huggingFaceToken)
+          : huggingFaceAPI;
 
-      const generatedImage = await imageGenerator.generateImage(request);
+        const request: HuggingFaceRequest = {
+          prompt: settings.enhance ? hfAPI.enhancePrompt(prompt) : prompt,
+          negative_prompt: settings.negative_prompt,
+          width: settings.width,
+          height: settings.height,
+          num_inference_steps: settings.num_inference_steps,
+          guidance_scale: settings.guidance_scale,
+          seed: settings.seed,
+        };
 
-      // Add to generated images list
-      setGeneratedImages((prev) => [generatedImage, ...prev]);
+        const generatedImage = await hfAPI.generateImage(
+          request,
+          settings.huggingFaceModel,
+        );
 
-      return generatedImage;
+        // Add provider identifier
+        const unifiedImage: UnifiedGeneratedImage = {
+          ...generatedImage,
+          provider: "huggingface" as const,
+        };
+
+        setGeneratedImages((prev) => [unifiedImage, ...prev]);
+        return unifiedImage;
+      } else {
+        // Use Pollinations API
+        const request: ImageGenerationRequest = {
+          prompt,
+          width: settings.width,
+          height: settings.height,
+          model: settings.pollinationsModel as any,
+          enhance: settings.enhance,
+          seed: settings.seed,
+          nologo: true,
+          private: false,
+        };
+
+        const generatedImage = await imageGenerator.generateImage(request);
+        setGeneratedImages((prev) => [generatedImage, ...prev]);
+        return generatedImage;
+      }
     },
     onSuccess: (image) => {
-      toast.success("Image générée avec succès !");
+      const provider =
+        settings.provider === "huggingface" ? "Hugging Face" : "Pollinations";
+      toast.success(`Image générée avec succès via ${provider} !`);
       setIsGenerating(false);
     },
     onError: (error: Error) => {
@@ -84,30 +144,71 @@ export function useImageGeneration() {
 
   const updateSettings = useCallback(
     (newSettings: Partial<ImageGenerationSettings>) => {
-      setSettings((prev) => ({ ...prev, ...newSettings }));
+      setSettings((prev) => {
+        const updated = { ...prev, ...newSettings };
+
+        // Auto-adjust dimensions when switching providers
+        if (newSettings.provider && newSettings.provider !== prev.provider) {
+          if (newSettings.provider === "huggingface") {
+            // Switch to SD-friendly dimensions
+            updated.width = 512;
+            updated.height = 512;
+          } else {
+            // Switch to Pollinations dimensions
+            updated.width = 1024;
+            updated.height = 1024;
+          }
+        }
+
+        return updated;
+      });
     },
     [],
   );
 
   const removeGeneratedImage = useCallback((imageId: string) => {
-    setGeneratedImages((prev) => prev.filter((img) => img.id !== imageId));
+    setGeneratedImages((prev) => {
+      const imageToRemove = prev.find((img) => img.id === imageId);
+      if (imageToRemove && "blob" in imageToRemove) {
+        // Revoke Hugging Face blob URL
+        URL.revokeObjectURL(imageToRemove.url);
+      }
+      return prev.filter((img) => img.id !== imageId);
+    });
     toast.success("Image supprimée");
   }, []);
 
   const clearGeneratedImages = useCallback(() => {
+    // Revoke all Hugging Face blob URLs
+    generatedImages.forEach((img) => {
+      if ("blob" in img) {
+        URL.revokeObjectURL(img.url);
+      }
+    });
     setGeneratedImages([]);
     toast.success("Toutes les images ont été supprimées");
-  }, []);
+  }, [generatedImages]);
 
-  const downloadImage = useCallback(async (image: GeneratedImage) => {
+  const downloadImage = useCallback(async (image: UnifiedGeneratedImage) => {
     try {
-      const response = await fetch(image.url);
-      const blob = await response.blob();
+      let blob: Blob;
+      let filename: string;
+
+      if ("blob" in image) {
+        // Hugging Face image
+        blob = image.blob;
+        filename = `nothingai-hf-${image.id}.png`;
+      } else {
+        // Pollinations image
+        const response = await fetch(image.url);
+        blob = await response.blob();
+        filename = `nothingai-pollinations-${image.id}.png`;
+      }
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `nothingai-${image.id}.png`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -121,7 +222,7 @@ export function useImageGeneration() {
   }, []);
 
   const regenerateImage = useCallback(
-    (originalImage: GeneratedImage) => {
+    (originalImage: UnifiedGeneratedImage) => {
       // Regenerate with same prompt but new seed
       const newSeed = Math.floor(Math.random() * 1000000);
       const oldSettings = settings;
@@ -136,8 +237,17 @@ export function useImageGeneration() {
   );
 
   const getImageGenerationStats = useCallback(() => {
+    const pollinationsCount = generatedImages.filter(
+      (img) => !("blob" in img),
+    ).length;
+    const huggingfaceCount = generatedImages.filter(
+      (img) => "blob" in img,
+    ).length;
+
     return {
       totalGenerated: generatedImages.length,
+      pollinationsCount,
+      huggingfaceCount,
       modelsUsed: [...new Set(generatedImages.map((img) => img.model))].length,
       averageSize:
         generatedImages.length > 0
@@ -162,7 +272,7 @@ export function useImageGeneration() {
       userPrompt: string,
     ): Promise<{
       text: string;
-      image?: GeneratedImage;
+      image?: UnifiedGeneratedImage;
     }> => {
       try {
         const extractedPrompt =
@@ -175,9 +285,13 @@ export function useImageGeneration() {
         }
 
         const image = await generateImage(extractedPrompt);
+        const provider =
+          settings.provider === "huggingface"
+            ? "Hugging Face (Stable Diffusion)"
+            : "Pollinations.ai";
 
         return {
-          text: `J'ai généré une image basée sur votre demande : "${extractedPrompt}". Voici le résultat :`,
+          text: `J'ai généré une image basée sur votre demande : "${extractedPrompt}" via ${provider}. Voici le résultat :`,
           image,
         };
       } catch (error) {
@@ -186,7 +300,19 @@ export function useImageGeneration() {
         };
       }
     },
-    [generateImage],
+    [generateImage, settings.provider],
+  );
+
+  // Validate Hugging Face token
+  const validateHFToken = useCallback(
+    async (token: string): Promise<boolean> => {
+      try {
+        return await huggingFaceAPI.validateToken(token);
+      } catch (error) {
+        return false;
+      }
+    },
+    [],
   );
 
   return {
@@ -208,10 +334,13 @@ export function useImageGeneration() {
     getImageGenerationStats,
     detectImageGenerationIntent,
     generateImageResponse,
+    validateHFToken,
 
     // API info
-    availableModels: imageGenerator.getAvailableModels(),
-    commonDimensions: imageGenerator.getCommonDimensions(),
+    pollinationsModels: imageGenerator.getAvailableModels(),
+    huggingFaceModels: huggingFaceAPI.getAvailableModels(),
+    pollinationsDimensions: imageGenerator.getCommonDimensions(),
+    huggingFaceDimensions: huggingFaceAPI.getRecommendedDimensions(),
 
     // Error handling
     error: generateImageMutation.error,
