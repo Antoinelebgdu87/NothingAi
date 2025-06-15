@@ -48,21 +48,23 @@ export interface ModelInfo {
   };
 }
 
-// Best free/affordable models for different use cases with conservative token limits
+// Best unlimited free models - incredibly fast and powerful
 export const RECOMMENDED_MODELS = {
-  // Best free models with low token usage
+  // Best free unlimited models - no credit usage
   free: [
-    "meta-llama/llama-3.2-3b-instruct:free",
-    "microsoft/phi-3-mini-128k-instruct:free",
-    "huggingfaceh4/zephyr-7b-beta:free",
+    "meta-llama/llama-3.2-3b-instruct:free", // Ultra fast and smart
+    "meta-llama/llama-3.2-1b-instruct:free", // Lightning fast
+    "microsoft/phi-3-mini-128k-instruct:free", // Great for long context
+    "huggingfaceh4/zephyr-7b-beta:free", // Creative and helpful
+    "google/gemma-2-9b-it:free", // Google's powerful model
   ],
-  // Best affordable premium models
+  // Premium models for special cases
   affordable: [
     "meta-llama/llama-3.1-8b-instruct",
     "google/gemma-2-9b-it",
     "anthropic/claude-3-haiku",
   ],
-  // Best premium models for advanced tasks
+  // Advanced models
   premium: [
     "anthropic/claude-3.5-sonnet",
     "openai/gpt-4o",
@@ -70,26 +72,25 @@ export const RECOMMENDED_MODELS = {
   ],
 } as const;
 
-// Conservative token limits for different model tiers
+// Generous token limits for unlimited free models
 export const TOKEN_LIMITS = {
   free: {
-    max_tokens: 512, // Very conservative for free models
-    safe_limit: 256,
+    max_tokens: 2048, // Generous for free unlimited models
+    safe_limit: 1024,
   },
   affordable: {
-    max_tokens: 1024, // Moderate for affordable models
-    safe_limit: 512,
+    max_tokens: 2048,
+    safe_limit: 1024,
   },
   premium: {
-    max_tokens: 2048, // Higher for premium models
-    safe_limit: 1024,
+    max_tokens: 4096,
+    safe_limit: 2048,
   },
 } as const;
 
 export class OpenRouterAPI {
   private apiKey: string;
   private baseURL: string;
-  private remainingCredits: number | null = null;
 
   constructor(apiKey?: string) {
     this.apiKey = apiKey || OPENROUTER_API_KEY;
@@ -107,48 +108,32 @@ export class OpenRouterAPI {
     const tier = this.getModelTier(model);
     const limits = TOKEN_LIMITS[tier];
 
-    // If we have credit info and it's low, use safe limit
-    if (this.remainingCredits !== null && this.remainingCredits < 2000) {
-      return Math.min(requestedTokens, limits.safe_limit);
-    }
-
+    // For free models, use generous limits since they're unlimited
     return Math.min(requestedTokens, limits.max_tokens);
   }
 
-  private async handleCreditError(
+  private async handleApiError(
     error: any,
     model: string,
     originalTokens: number,
     attempt: number = 1,
   ): Promise<{ model: string; maxTokens: number } | null> {
-    console.log("Gestion erreur crédit:", error);
+    console.log("Gestion erreur API:", error);
 
-    // Extract available credits from error message
-    const message = error.error?.message || "";
-    const creditMatch = message.match(/can only afford (\d+)/);
-    if (creditMatch) {
-      const availableCredits = parseInt(creditMatch[1]);
-      this.remainingCredits = availableCredits;
-      console.log(`Crédits disponibles: ${availableCredits}`);
-
-      // Calculate safe token limit based on available credits
-      const safeTokens = Math.max(100, Math.floor(availableCredits * 0.8));
-
-      if (safeTokens >= 100) {
-        console.log(`Retry avec ${safeTokens} tokens`);
-        return { model, maxTokens: safeTokens };
-      }
-    }
-
-    // If we can't use the current model, try to fallback to a free model
+    // Always try to fallback to the best free unlimited model
     if (attempt === 1) {
       const currentTier = this.getModelTier(model);
       if (currentTier !== "free") {
-        const freeModel = RECOMMENDED_MODELS.free[0];
-        const freeTokens = TOKEN_LIMITS.free.safe_limit;
-        console.log(`Fallback vers modèle gratuit: ${freeModel}`);
-        return { model: freeModel, maxTokens: freeTokens };
+        const bestFreeModel = RECOMMENDED_MODELS.free[0]; // Best unlimited free model
+        const freeTokens = TOKEN_LIMITS.free.max_tokens;
+        console.log(`Fallback vers modèle gratuit illimité: ${bestFreeModel}`);
+        return { model: bestFreeModel, maxTokens: freeTokens };
       }
+
+      // If already on free model, try with reduced tokens
+      const reducedTokens = Math.max(512, Math.floor(originalTokens * 0.7));
+      console.log(`Retry avec tokens réduits: ${reducedTokens}`);
+      return { model, maxTokens: reducedTokens };
     }
 
     return null;
@@ -198,40 +183,35 @@ export class OpenRouterAPI {
         if (!response.ok) {
           const error = await response.json().catch(() => ({}));
 
-          // Handle credit errors specifically
-          if (response.status === 402 || error.error?.code === 402) {
-            const fallback = await this.handleCreditError(
-              error,
-              currentModel,
-              maxTokens,
-              attempt,
-            );
-
-            if (fallback) {
-              currentModel = fallback.model;
-              maxTokens = fallback.maxTokens;
-              continue; // Try again with new parameters
-            } else {
-              throw new Error(
-                "Crédits OpenRouter épuisés. Veuillez recharger votre compte ou utiliser un modèle gratuit.",
-              );
-            }
-          }
-
-          // Handle other errors
-          throw new Error(
-            `OpenRouter API Error: ${response.status} - ${error.error?.message || response.statusText}`,
+          // Handle any API errors with intelligent fallback
+          const fallback = await this.handleApiError(
+            error,
+            currentModel,
+            maxTokens,
+            attempt,
           );
+
+          if (fallback) {
+            currentModel = fallback.model;
+            maxTokens = fallback.maxTokens;
+            continue; // Try again with new parameters
+          } else {
+            throw new Error(
+              `Erreur temporaire du service. Veuillez réessayer dans un moment.`,
+            );
+          }
         }
 
         const result = await response.json();
-        console.log("Succès avec:", currentModel, maxTokens, "tokens");
+        console.log("Succès avec modèle ultra-rapide:", currentModel);
         return result;
       } catch (error) {
         console.error(`Tentative ${attempt} échouée:`, error);
 
         if (attempt === 3) {
-          throw error; // Re-throw on final attempt
+          throw new Error(
+            "Service temporairement indisponible. Veuillez réessayer.",
+          );
         }
 
         // Wait a bit before retry
@@ -294,33 +274,25 @@ export class OpenRouterAPI {
             error = { error: { message: errorText } };
           }
 
-          // Handle credit errors specifically
-          if (response.status === 402 || error.error?.code === 402) {
-            const fallback = await this.handleCreditError(
-              error,
-              currentModel,
-              maxTokens,
-              attempt,
-            );
-
-            if (fallback) {
-              currentModel = fallback.model;
-              maxTokens = fallback.maxTokens;
-              continue; // Try again with new parameters
-            } else {
-              const errorMsg = new Error(
-                "Crédits OpenRouter épuisés. Basculement vers un modèle gratuit recommandé.",
-              );
-              options.onError?.(errorMsg);
-              return;
-            }
-          }
-
-          const errorMsg = new Error(
-            `OpenRouter API Error: ${response.status} - ${error.error?.message || response.statusText}`,
+          // Handle any API errors with intelligent fallback
+          const fallback = await this.handleApiError(
+            error,
+            currentModel,
+            maxTokens,
+            attempt,
           );
-          options.onError?.(errorMsg);
-          return;
+
+          if (fallback) {
+            currentModel = fallback.model;
+            maxTokens = fallback.maxTokens;
+            continue; // Try again with new parameters
+          } else {
+            const errorMsg = new Error(
+              "Service temporairement indisponible. Réessayez dans un moment.",
+            );
+            options.onError?.(errorMsg);
+            return;
+          }
         }
 
         // Stream processing
@@ -345,7 +317,10 @@ export class OpenRouterAPI {
                 const data = line.slice(6);
                 if (data === "[DONE]") {
                   options.onComplete?.(fullResponse);
-                  console.log("Stream complété avec:", currentModel);
+                  console.log(
+                    "Stream complété avec modèle ultra-rapide:",
+                    currentModel,
+                  );
                   return;
                 }
 
@@ -373,7 +348,9 @@ export class OpenRouterAPI {
         console.error(`Stream tentative ${attempt} échouée:`, error);
 
         if (attempt === 3) {
-          options.onError?.(error as Error);
+          options.onError?.(
+            new Error("Service temporairement indisponible. Réessayez."),
+          );
           return;
         }
 
@@ -384,18 +361,24 @@ export class OpenRouterAPI {
   }
 
   async getModels(): Promise<ModelInfo[]> {
-    const response = await fetch(`${this.baseURL}/models`, {
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-    });
+    try {
+      const response = await fetch(`${this.baseURL}/models`, {
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+      });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch models: ${response.statusText}`);
+      if (!response.ok) {
+        console.warn("Impossible de récupérer la liste des modèles");
+        return [];
+      }
+
+      const data = await response.json();
+      return data.data || [];
+    } catch (error) {
+      console.warn("Erreur lors de la récupération des modèles:", error);
+      return [];
     }
-
-    const data = await response.json();
-    return data.data;
   }
 
   async getModelInfo(modelId: string): Promise<ModelInfo> {
@@ -408,35 +391,12 @@ export class OpenRouterAPI {
 
     return model;
   }
-
-  // Get current credit status
-  async getCreditStatus(): Promise<{ credits: number; unlimited: boolean }> {
-    try {
-      const response = await fetch(`${this.baseURL}/auth/key`, {
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return {
-          credits: data.data?.credit_balance || 0,
-          unlimited: data.data?.rate_limit?.unlimited || false,
-        };
-      }
-    } catch (error) {
-      console.warn("Impossible de récupérer le statut des crédits:", error);
-    }
-
-    return { credits: 0, unlimited: false };
-  }
 }
 
 // Create a singleton instance
 export const openRouter = new OpenRouterAPI();
 
-// Utility function to get model by category with credit awareness
+// Utility function to get model by category optimized for free unlimited usage
 export function getModelByCategory(
   category: keyof typeof RECOMMENDED_MODELS,
   index: number = 0,
@@ -444,7 +404,7 @@ export function getModelByCategory(
   return RECOMMENDED_MODELS[category][index] || RECOMMENDED_MODELS.free[0];
 }
 
-// Utility function to get safe token limit for a model
+// Utility function to get optimal token limit for unlimited free models
 export function getSafeTokenLimit(
   model: string,
   requestedTokens: number = 1024,
@@ -459,11 +419,11 @@ export function getSafeTokenLimit(
   return Math.min(requestedTokens, limits.max_tokens);
 }
 
-// Utility function to estimate cost (approximate)
+// Utility function to estimate cost (all free models cost nothing!)
 export function estimateTokenCost(tokens: number, model: string): number {
-  if (RECOMMENDED_MODELS.free.includes(model as any)) return 0;
+  if (RECOMMENDED_MODELS.free.includes(model as any)) return 0; // Free unlimited!
 
-  // This is a simplified estimation - real costs vary by model
+  // This is a simplified estimation for paid models
   const baseCostPer1kTokens = RECOMMENDED_MODELS.affordable.includes(
     model as any,
   )
