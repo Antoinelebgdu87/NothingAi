@@ -53,11 +53,6 @@ import { useChat } from "@/hooks/use-chat";
 import { useMobile } from "@/hooks/use-mobile";
 import { LogoGridBackground } from "@/components/ui/nothingai-logo";
 import ChatMessageComponent from "@/components/ui/chat-message";
-import {
-  NothingAIWordmark,
-  LogoGridBackground,
-} from "@/components/ui/nothingai-logo";
-import ChatMessageComponent from "@/components/ui/chat-message";
 import ImageUploadModal from "@/components/ui/image-upload-modal";
 import ImageGenerationModal from "@/components/ui/image-generation-modal";
 import GeneratedImagesDisplay from "@/components/ui/generated-images-display";
