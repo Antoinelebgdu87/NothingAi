@@ -152,6 +152,38 @@ class SimpleLicenseManager {
     return newLicense;
   }
 
+  // Supprimer une license spécifique
+  public deleteLicense(licenseKey: string): {
+    success: boolean;
+    message: string;
+  } {
+    try {
+      const index = this.predefinedLicenses.findIndex(
+        (l) => l.key === licenseKey,
+      );
+
+      if (index === -1) {
+        return { success: false, message: "License non trouvée" };
+      }
+
+      // Vérifier si c'est la license actuellement utilisée
+      const currentUserLicense = this.getUserLicense();
+      if (currentUserLicense === licenseKey) {
+        this.clearUserLicense();
+        console.log("🔄 License active supprimée, utilisateur déconnecté");
+      }
+
+      // Supprimer la license de la liste
+      this.predefinedLicenses.splice(index, 1);
+      console.log("🗑️ License supprimée:", licenseKey);
+
+      return { success: true, message: "License supprimée avec succès" };
+    } catch (error) {
+      console.error("⚠️ Erreur suppression license:", error);
+      return { success: false, message: "Erreur lors de la suppression" };
+    }
+  }
+
   // Obtenir toutes les licenses
   public getAllLicenses(): SimpleLicense[] {
     return [...this.predefinedLicenses];
