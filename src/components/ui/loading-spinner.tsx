@@ -186,4 +186,8 @@ export const ButtonLoading = ({
   );
 };
 
+// Named export for compatibility
+export { LoadingSpinner };
+
+// Default export
 export default LoadingSpinner;
