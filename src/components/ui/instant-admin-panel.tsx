@@ -156,7 +156,7 @@ const InstantAdminPanel = ({ open, onClose }: InstantAdminPanelProps) => {
                 <Input
                   id="admin-email"
                   type="email"
-                  placeholder="firefoxytb80@gmail.com"
+                  placeholder=""
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -168,7 +168,7 @@ const InstantAdminPanel = ({ open, onClose }: InstantAdminPanelProps) => {
                   <Input
                     id="admin-password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Antoine80@"
+                    placeholder=""
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
