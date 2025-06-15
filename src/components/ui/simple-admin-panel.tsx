@@ -297,7 +297,11 @@ const SimpleAdminPanel = ({ open, onClose }: SimpleAdminPanelProps) => {
                         <div className="flex items-center justify-between">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <code className="bg-muted px-2 py-1 rounded text-sm font-mono">
+                              <code
+                                className="bg-muted px-2 py-1 rounded text-sm font-mono cursor-pointer hover:bg-primary/10 transition-colors"
+                                onClick={() => copyLicense(license.key)}
+                                title="Cliquer pour copier"
+                              >
                                 {license.key}
                               </code>
                               <Badge variant="default">{license.name}</Badge>
@@ -310,7 +314,8 @@ const SimpleAdminPanel = ({ open, onClose }: SimpleAdminPanelProps) => {
                               </Badge>
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              License #{index + 1} - Système local
+                              License #{index + 1} - Cliquer sur la clé pour
+                              copier
                             </div>
                           </div>
                           <div className="flex gap-2">
@@ -318,8 +323,17 @@ const SimpleAdminPanel = ({ open, onClose }: SimpleAdminPanelProps) => {
                               variant="outline"
                               size="sm"
                               onClick={() => copyLicense(license.key)}
+                              title="Copier la clé"
                             >
                               <Copy className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => deleteLicense(license.key)}
+                              title="Supprimer cette clé"
+                            >
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </div>
