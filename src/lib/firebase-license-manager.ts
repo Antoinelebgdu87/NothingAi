@@ -343,13 +343,21 @@ class FirebaseLicenseManager {
         query(collection(db, "licenses"), orderBy("createdAt", "desc")),
       );
 
-      return querySnapshot.docs.map(
-        (doc) =>
-          ({
-            id: doc.id,
-            ...doc.data(),
-          }) as FirebaseLicense,
-      );
+      return querySnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          key: data.key || "",
+          usages: data.usages || 0,
+          maxUsages: data.maxUsages || 1,
+          createdAt: data.createdAt || null,
+          expiresAt: data.expiresAt || null,
+          isActive: data.isActive !== false, // Default to true if undefined
+          usedBy: Array.isArray(data.usedBy) ? data.usedBy : [],
+          type: data.type || "standard",
+          metadata: data.metadata || {},
+        } as FirebaseLicense;
+      });
     } catch (error) {
       console.error("Erreur lors de la récupération des licenses:", error);
       return [];
