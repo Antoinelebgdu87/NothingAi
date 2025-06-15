@@ -389,19 +389,48 @@ class FirebaseLicenseManager {
       const licensesSnapshot = await getDocs(collection(db, "licenses"));
       const usagesSnapshot = await getDocs(collection(db, "license_usages"));
 
-      const licenses = licensesSnapshot.docs.map(
-        (doc) => doc.data() as FirebaseLicense,
-      );
+      const licenses = licensesSnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+        } as FirebaseLicense;
+      });
       const now = new Date();
+
+      // Filtrer en sécurité avec vérifications
+      const activeLicenses = licenses.filter((l) => l && l.isActive === true);
+
+      const expiredLicenses = licenses.filter((l) => {
+        if (!l || !l.expiresAt) return false;
+        try {
+          const expiresAt = l.expiresAt.toDate
+            ? l.expiresAt.toDate()
+            : new Date(l.expiresAt);
+          return expiresAt < now;
+        } catch (error) {
+          console.warn("Erreur lors de la conversion de date:", error);
+          return false;
+        }
+      });
+
+      const usedLicenses = licenses.filter(
+        (l) => l && typeof l.usages === "number" && l.usages > 0,
+      );
+
+      const deviceCount = new Set(
+        licenses
+          .filter((l) => l && Array.isArray(l.usedBy))
+          .flatMap((l) => l.usedBy),
+      ).size;
 
       return {
         totalLicenses: licenses.length,
-        activeLicenses: licenses.filter((l) => l.isActive).length,
-        expiredLicenses: licenses.filter((l) => l.expiresAt.toDate() < now)
-          .length,
-        usedLicenses: licenses.filter((l) => l.usages > 0).length,
+        activeLicenses: activeLicenses.length,
+        expiredLicenses: expiredLicenses.length,
+        usedLicenses: usedLicenses.length,
         totalUsages: usagesSnapshot.size,
-        deviceCount: new Set(licenses.flatMap((l) => l.usedBy)).size,
+        deviceCount,
       };
     } catch (error) {
       console.error("Erreur lors de la récupération des stats:", error);
