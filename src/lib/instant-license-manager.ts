@@ -481,6 +481,44 @@ class InstantLicenseManager {
     }
   }
 
+  // Fonction de debug pour tester l'encodage/décodage
+  public debugLicense(licenseKey: string): any {
+    console.log("🔧 DEBUG LICENSE:", licenseKey);
+
+    let cleanKey = licenseKey.trim().toUpperCase();
+    if (!cleanKey.startsWith("NOTHINGAI-")) {
+      if (cleanKey.startsWith("NOTHINGAI")) {
+        cleanKey = cleanKey.replace("NOTHINGAI", "NOTHINGAI-");
+      } else {
+        cleanKey = `NOTHINGAI-${cleanKey}`;
+      }
+    }
+
+    const keyPart = cleanKey.replace("NOTHINGAI-", "");
+    const isBaseLicense = this.baseLicenses.some((l) => l.key === cleanKey);
+
+    // Test de décodage
+    const decoded1 = this.decodeLicenseData(cleanKey);
+    const decoded2 = this.decodeLicenseData(keyPart);
+
+    // Usage
+    const usage = this.getLicenseUsage(cleanKey);
+
+    const debug = {
+      originalKey: licenseKey,
+      cleanKey: cleanKey,
+      keyPart: keyPart,
+      isBaseLicense: isBaseLicense,
+      decodedFromFull: decoded1,
+      decodedFromPart: decoded2,
+      usage: usage,
+      isValid: this.isValidLicense(cleanKey),
+    };
+
+    console.log("🔧 DEBUG RESULT:", debug);
+    return debug;
+  }
+
   // Statistiques
   public getStats() {
     const allLicenses = this.getAllLicenses();
