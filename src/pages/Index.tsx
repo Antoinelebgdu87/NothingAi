@@ -268,6 +268,20 @@ const Index = () => {
                       Générer une Image
                     </Button>
 
+                    {imageGeneration.generatedImages.length > 0 && (
+                      <Link to="/images">
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start"
+                          onClick={() => setShowSidebar(false)}
+                        >
+                          <ImageIcon className="w-4 h-4 mr-2" />
+                          Mes Images ({imageGeneration.generatedImages.length})
+                          <ExternalLink className="w-3 h-3 ml-auto" />
+                        </Button>
+                      </Link>
+                    )}
+
                     <Link to="/settings">
                       <Button
                         variant="ghost"
