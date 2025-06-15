@@ -82,6 +82,7 @@ const IMAGE_FORMATS: ImageFormat[] = [
     icon: <RectangleHorizontal className="w-4 h-4" />,
     category: "social",
   },
+  // Web
   {
     id: "banner-web",
     name: "Bannière Web",
