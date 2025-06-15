@@ -66,6 +66,24 @@ const InstantLicenseGate = ({ onLicenseValid }: InstantLicenseGateProps) => {
     toast.info("Clé de test remplie - Cliquez sur Activer");
   };
 
+  // Test de création et validation immédiate
+  const testNewLicense = () => {
+    console.log("🧪 Test création + validation...");
+
+    // Créer une nouvelle license
+    const result = instantLicenseManager.createCustomLicense(7, 50);
+    console.log("📝 License créée:", result);
+
+    if (result.success) {
+      // Tester immédiatement
+      const debug = (instantLicenseManager as any).debugLicense(result.key);
+      toast.info(`Test: ${result.key.substring(0, 20)}...`);
+      setLicenseKey(result.key);
+    } else {
+      toast.error("Erreur création test");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
       {/* Arrière-plan animé */}
