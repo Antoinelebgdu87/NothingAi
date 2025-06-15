@@ -143,7 +143,7 @@ const ImageUploadModal = ({
           />
 
           {/* Uploaded Images */}
-          {images.length > 0 && (
+          {images && images.length > 0 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-medium flex items-center">

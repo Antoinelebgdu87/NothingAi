@@ -93,6 +93,11 @@ const ConversationSidebar = ({
   const groupConversationsByDate = (conversations: StoredConversation[]) => {
     const groups: { [key: string]: StoredConversation[] } = {};
 
+    // Safety check: ensure conversations is defined and is an array
+    if (!conversations || !Array.isArray(conversations)) {
+      return groups;
+    }
+
     conversations.forEach((conv) => {
       const key = formatDate(conv.updatedAt);
       if (!groups[key]) groups[key] = [];
@@ -102,7 +107,7 @@ const ConversationSidebar = ({
     return groups;
   };
 
-  const groupedConversations = groupConversationsByDate(conversations);
+  const groupedConversations = groupConversationsByDate(conversations || []);
 
   return (
     <div className={cn("flex flex-col h-full bg-card border-r", className)}>
