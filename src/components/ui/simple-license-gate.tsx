@@ -138,36 +138,7 @@ const SimpleLicenseGate = ({ onLicenseValid }: SimpleLicenseGateProps) => {
             </Button>
           </form>
 
-          {/* Clés de test */}
-          <div className="space-y-3">
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                🧪 Clés de test disponibles
-              </h4>
-              <div className="space-y-2">
-                {testLicenses.map((license) => (
-                  <div
-                    key={license.key}
-                    className="flex items-center justify-between"
-                  >
-                    <code className="text-xs bg-background px-2 py-1 rounded">
-                      {license.key}
-                    </code>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-6 text-xs"
-                      onClick={() => {
-                        setLicenseKey(license.key);
-                        toast.info("Clé copiée !");
-                      }}
-                    >
-                      Copier
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
+
 
             <div className="text-center">
               <p className="text-xs text-muted-foreground">
