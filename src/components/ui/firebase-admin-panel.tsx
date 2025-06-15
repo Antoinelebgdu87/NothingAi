@@ -245,8 +245,21 @@ const FirebaseAdminPanel = ({ open, onClose }: FirebaseAdminPanelProps) => {
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return "N/A";
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString("fr-FR") + " " + date.toLocaleTimeString();
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      if (isNaN(date.getTime())) return "Date invalide";
+      return (
+        date.toLocaleDateString("fr-FR") +
+        " " +
+        date.toLocaleTimeString("fr-FR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
+    } catch (error) {
+      console.warn("Erreur formatage date:", error);
+      return "Date invalide";
+    }
   };
 
   const getLicenseTypeColor = (type: string) => {
