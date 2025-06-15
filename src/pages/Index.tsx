@@ -54,10 +54,7 @@ import ImageUploadModal from "@/components/ui/image-upload-modal";
 import ImageGenerationModal from "@/components/ui/image-generation-modal";
 import GeneratedImagesDisplay from "@/components/ui/generated-images-display";
 import ConversationSidebar from "@/components/ui/conversation-sidebar";
-import {
-  NothingAIWordmark,
-  LogoGridBackground,
-} from "@/components/ui/nothingai-logo";
+import { LogoGridBackground } from "@/components/ui/nothingai-logo";
 import { PageLoading } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
 
@@ -240,9 +237,9 @@ const Index = () => {
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-80 p-0">
-                  <div className="p-4 border-b">
-                    <NothingAIWordmark size="sm" />
-                  </div>
+          <div className="p-4 border-b">
+            <h1 className="text-xl font-bold">NothingAI</h1>
+          </div>
                   <div className="p-4 space-y-2">
                     <Button
                       variant="ghost"
@@ -316,14 +313,15 @@ const Index = () => {
                     onExportConversation={exportChat}
                     onClearAllData={clearAllData}
                     stats={getStats()}
-                    className="border-0"
-                  />
+                  <div className="p-4 border-b">
+                    <h1 className="text-lg font-bold">NothingAI</h1>
+                  </div>
                 </SheetContent>
               </Sheet>
 
               {/* Logo for mobile */}
               <div className="lg:hidden">
-                <NothingAIWordmark size="sm" />
+                <h1 className="text-lg font-bold">NothingAI</h1>
               </div>
 
               {/* Model Badge */}

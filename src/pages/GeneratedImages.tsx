@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { ArrowLeft, Sparkles, Wand2 } from "lucide-react";
 import GeneratedImagesDisplay from "@/components/ui/generated-images-display";
-import { NothingAIWordmark } from "@/components/ui/nothingai-logo";
+// Logo retiré
 import { useImageGeneration } from "@/hooks/use-image-generation";
 
 const GeneratedImages = () => {
@@ -40,7 +40,7 @@ const GeneratedImages = () => {
                 </p>
               </div>
             </div>
-            <NothingAIWordmark size="md" />
+            <h1 className="text-xl font-bold">NothingAI</h1>
           </div>
         </div>
 

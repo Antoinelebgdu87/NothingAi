@@ -36,7 +36,7 @@ import {
 import LogoCustomizer from "@/components/ui/logo-customizer";
 import ImageFormatSelector from "@/components/ui/image-format-selector";
 import APIHealthCheck from "@/components/ui/api-health-check";
-import { NothingAIWordmark } from "@/components/ui/nothingai-logo";
+// Logo retiré
 import { useChat } from "@/hooks/use-chat";
 import { useImageGeneration } from "@/hooks/use-image-generation";
 import { toast } from "sonner";
@@ -123,9 +123,8 @@ const Settings = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <NothingAIWordmark size="lg" />
+              <h1 className="text-3xl font-bold">NothingAI - Paramètres</h1>
               <div>
-                <h1 className="text-3xl font-bold">Paramètres</h1>
                 <p className="text-muted-foreground">
                   Personnalisez votre expérience NothingAI
                 </p>
@@ -594,7 +593,6 @@ const Settings = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="text-center space-y-4">
-                  <NothingAIWordmark size="lg" />
                   <div>
                     <h3 className="text-xl font-semibold">
                       NothingAI Version 1.0
