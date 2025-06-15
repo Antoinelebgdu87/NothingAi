@@ -313,9 +313,15 @@ const Index = () => {
                     onExportConversation={exportChat}
                     onClearAllData={clearAllData}
                     stats={getStats()}
-                  <div className="p-4 border-b">
-                    <h1 className="text-lg font-bold">NothingAI</h1>
-                  </div>
+                    className="border-0"
+                  />
+                </SheetContent>
+              </Sheet>
+
+              {/* Logo for mobile */}
+              <div className="lg:hidden">
+                <h1 className="text-lg font-bold">NothingAI</h1>
+              </div>
                 </SheetContent>
               </Sheet>
 
