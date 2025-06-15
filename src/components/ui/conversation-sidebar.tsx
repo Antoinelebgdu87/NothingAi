@@ -129,11 +129,11 @@ const ConversationSidebar = ({
         <div className="flex flex-wrap gap-2">
           <Badge variant="secondary" className="text-xs">
             <MessageSquare className="w-3 h-3 mr-1" />
-            {stats.totalConversations}
+            {stats?.totalConversations || 0}
           </Badge>
           <Badge variant="secondary" className="text-xs">
             <BarChart3 className="w-3 h-3 mr-1" />
-            {stats.totalMessages}
+            {stats?.totalMessages || 0}
           </Badge>
         </div>
       </div>
